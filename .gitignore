@@ -1,0 +1,25 @@
+# ---- Environment / Secrets ----
+.env
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# ---- Docker ----
+# (โฟลเดอร์ข้อมูลฐานข้อมูลถ้ามีการ mount แบบ bind แทน named volume)
+db_data/
+
+# ---- IDE ----
+.vscode/
+.idea/
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+desktop.ini
