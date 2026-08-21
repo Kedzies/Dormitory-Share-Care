@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Dormitory Share & Care</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --pink: #FFD9E7;
+    --pink-deep: #FF9FC4;
+    --pink-text: #C2447A;
+    --blue: #D6ECFF;
+    --blue-deep: #8FC7FF;
+    --blue-text: #2E7BC4;
+    --white: #FFFFFF;
+    --ink: #3A3247;
+    --ink-soft: #8A8296;
+    --green: #56C596;
+    --green-bg: #E3F8EF;
+    --red: #FF7A8A;
+    --red-bg: #FFE9EC;
+    --yellow: #FFC15E;
+    --yellow-bg: #FFF4E0;
+    --radius: 22px;
+    --radius-sm: 14px;
+    --shadow: 0 10px 30px -12px rgba(194,68,122,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Sarabun',sans-serif;
+    background: linear-gradient(180deg, var(--pink) 0%, var(--blue) 320px, #F7FAFF 520px);
+    background-attachment:fixed;
+    color:var(--ink);
+    min-height:100vh;
+  }
+  h1,h2,h3,.display{font-family:'Baloo 2',sans-serif;}
+  button{font-family:inherit;cursor:pointer;}
+  input,select,textarea{font-family:inherit;}
+  #app-shell{
+    max-width:480px;
+    margin:0 auto;
+    min-height:100vh;
+    background:transparent;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:22px 20px 14px;
+  }
+  .topbar .greet-wrap{display:flex;align-items:center;gap:12px;}
+  .avatar{
+    width:46px;height:46px;border-radius:50%;
+    background:var(--white); display:flex;align-items:center;justify-content:center;
+    font-size:22px; box-shadow:var(--shadow);
+  }
+  .greet-name{font-family:'Baloo 2';font-weight:700;font-size:17px;color:var(--ink);}
+  .greet-room{font-size:12.5px;color:var(--ink-soft);}
+  .bell-btn{
+    width:44px;height:44px;border-radius:50%;border:none;background:var(--white);
+    display:flex;align-items:center;justify-content:center;font-size:19px;
+    box-shadow:var(--shadow); position:relative;
+  }
+  .bell-dot{
+    position:absolute; top:9px; right:10px; width:9px;height:9px;border-radius:50%;
+    background:var(--pink-deep); border:2px solid var(--white);
+  }
+  .page-title-row{padding:6px 20px 14px; display:flex; align-items:center; gap:10px;}
+  .back-btn{
+    width:38px;height:38px;border-radius:50%;border:none;background:var(--white);
+    box-shadow:var(--shadow); font-size:17px; display:flex;align-items:center;justify-content:center;color:var(--ink);
+  }
+  .page-title{font-family:'Baloo 2';font-weight:700;font-size:21px;margin:0;}
+
+  /* ---------- Content ---------- */
+  #content{flex:1; padding: 0 20px 110px; animation: fadeIn .25s ease;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+  /* ---------- Cards ---------- */
+  .card{
+    background:var(--white); border-radius:var(--radius); padding:18px;
+    box-shadow:var(--shadow); margin-bottom:16px;
+  }
+  .points-card{
+    background: linear-gradient(135deg, var(--pink-deep), var(--pink));
+    color:#fff; border-radius:var(--radius); padding:22px;
+    box-shadow: 0 14px 30px -14px rgba(255,122,170,0.55);
+    margin-bottom:18px; position:relative; overflow:hidden;
+  }
+  .points-card .label{font-size:13px; opacity:.92; font-weight:600;}
+  .points-card .value{font-family:'Baloo 2'; font-size:38px; font-weight:800; margin:4px 0 2px; display:flex; align-items:center; gap:8px;}
+  .points-card .coin{display:inline-block; animation:none;}
+  .points-card.bounce .coin{animation: coinBounce .6s ease;}
+  @keyframes coinBounce{
+    0%{transform:translateY(0) rotate(0);}
+    30%{transform:translateY(-14px) rotate(-15deg);}
+    55%{transform:translateY(0) rotate(10deg);}
+    75%{transform:translateY(-6px) rotate(-6deg);}
+    100%{transform:translateY(0) rotate(0);}
+  }
+  .points-card .sub{font-size:12.5px; opacity:.9;}
+
+  .quick-grid{display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:8px;}
+  .quick-btn{
+    background:var(--white); border:none; border-radius:var(--radius);
+    padding:18px 14px; text-align:left; box-shadow:var(--shadow);
+    display:flex; flex-direction:column; gap:10px; transition:transform .15s ease;
+  }
+  .quick-btn:active{transform:scale(0.96);}
+  .quick-btn .qicon{
+    width:42px;height:42px;border-radius:14px; display:flex;align-items:center;justify-content:center;font-size:21px;
+  }
+  .quick-btn .qtitle{font-family:'Baloo 2'; font-weight:700; font-size:15px; color:var(--ink);}
+  .quick-btn .qsub{font-size:11.5px; color:var(--ink-soft);}
+
+  .section-title{font-family:'Baloo 2'; font-weight:700; font-size:16.5px; margin:22px 0 12px; display:flex; align-items:center; justify-content:space-between;}
+  .section-title .link{font-size:12.5px; color:var(--blue-text); font-family:'Sarabun'; font-weight:600;}
+
+  /* ---------- Search / filter ---------- */
+  .search-row{display:flex; gap:10px; margin-bottom:14px;}
+  .search-box{
+    flex:1; background:var(--white); border-radius:16px; padding:12px 16px;
+    display:flex; align-items:center; gap:8px; box-shadow:var(--shadow);
+  }
+  .search-box input{border:none; outline:none; flex:1; font-size:14px; background:transparent;}
+  .filter-chips{display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; margin-bottom:6px;}
+  .chip{
+    white-space:nowrap; padding:8px 16px; border-radius:20px; border:none;
+    background:var(--white); font-size:13px; font-weight:600; color:var(--ink-soft);
+    box-shadow: 0 4px 12px -6px rgba(0,0,0,0.08);
+  }
+  .chip.active{background:var(--pink-deep); color:#fff;}
+
+  /* ---------- Item grid ---------- */
+  .item-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .item-card{
+    background:var(--white); border-radius:18px; overflow:hidden; box-shadow:var(--shadow);
+    display:flex; flex-direction:column; border:none; text-align:left; padding:0;
+  }
+  .item-img{
+    height:88px; display:flex; align-items:center; justify-content:center; font-size:36px;
+    background: var(--blue);
+  }
+  .item-body{padding:12px 12px 14px;}
+  .item-name{font-weight:700; font-size:14px; margin:0 0 4px;}
+  .item-cat{font-size:11.5px; color:var(--ink-soft); margin-bottom:8px;}
+  .status-badge{
+    display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700;
+    padding:4px 10px; border-radius:20px;
+  }
+  .status-available{background:var(--green-bg); color:#1F9C6C;}
+  .status-borrowed{background:var(--red-bg); color:#E1435A;}
+  .status-repair{background:var(--yellow-bg); color:#B9790E;}
+
+  /* ---------- List rows (deposit / lost&found / notif / history) ---------- */
+  .list-row{
+    background:var(--white); border-radius:18px; padding:14px; box-shadow:var(--shadow);
+    display:flex; gap:12px; margin-bottom:12px; align-items:flex-start;
+  }
+  .row-icon{
+    width:48px;height:48px;border-radius:14px; flex-shrink:0;
+    display:flex;align-items:center;justify-content:center; font-size:22px; background:var(--pink);
+  }
+  .row-title{font-weight:700; font-size:14.5px; margin:0 0 3px;}
+  .row-sub{font-size:12.5px; color:var(--ink-soft); line-height:1.5;}
+  .row-meta{font-size:11px; color:var(--ink-soft); margin-top:6px;}
+  .pill{display:inline-block; font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:20px; margin-top:6px;}
+
+  /* ---------- Tabs ---------- */
+  .tabbar{display:flex; background:var(--white); border-radius:16px; padding:5px; box-shadow:var(--shadow); margin-bottom:16px;}
+  .tabbtn{flex:1; border:none; background:transparent; padding:10px; border-radius:12px; font-weight:700; font-size:13.5px; color:var(--ink-soft);}
+  .tabbtn.active{background:var(--blue-deep); color:#fff;}
+
+  /* ---------- Buttons ---------- */
+  .btn-primary{
+    width:100%; padding:15px; border:none; border-radius:16px; font-weight:700; font-size:15px;
+    background: linear-gradient(135deg, var(--pink-deep), #FF7FB2); color:#fff;
+    box-shadow: 0 12px 24px -12px rgba(255,127,178,0.6);
+  }
+  .btn-primary:active{transform:scale(0.98);}
+  .btn-secondary{
+    width:100%; padding:14px; border-radius:16px; font-weight:700; font-size:14.5px;
+    background:var(--blue); color:var(--blue-text); border:none;
+  }
+  .btn-ghost{
+    width:100%; padding:13px; border-radius:16px; font-weight:700; font-size:14px;
+    background:transparent; color:var(--ink-soft); border:2px solid #EEE7F2;
+  }
+
+  /* ---------- Forms ---------- */
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:13px; font-weight:600; color:var(--ink); margin-bottom:7px;}
+  .field input, .field select, .field textarea{
+    width:100%; padding:13px 14px; border-radius:14px; border:1.5px solid #F0E6EC;
+    font-size:14px; outline:none; background:#FCFAFD;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--pink-deep);}
+  .field textarea{resize:vertical; min-height:70px;}
+  .duration-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+  .duration-opt{
+    padding:12px 4px; text-align:center; border-radius:14px; border:1.5px solid #F0E6EC;
+    background:#FCFAFD; font-size:13px; font-weight:600; color:var(--ink-soft);
+  }
+  .duration-opt.active{border-color:var(--pink-deep); background:var(--pink); color:var(--pink-text);}
+
+  .upload-box{
+    border:2px dashed #EAD9E3; border-radius:16px; padding:22px; text-align:center; background:#FCFAFD;
+  }
+  .upload-box .up-icon{font-size:26px; margin-bottom:6px;}
+  .upload-box .up-text{font-size:12.5px; color:var(--ink-soft);}
+  .preview-img{width:100%; border-radius:14px; margin-top:10px; max-height:160px; object-fit:cover;}
+
+  /* ---------- Modal ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(58,50,71,0.45); display:none;
+    align-items:flex-end; justify-content:center; z-index:50;
+  }
+  .modal-overlay.open{display:flex; animation:fadeIn .2s ease;}
+  .modal-sheet{
+    width:100%; max-width:480px; background:#F7FAFF; border-radius:26px 26px 0 0;
+    padding:22px 20px 28px; max-height:88vh; overflow-y:auto;
+    animation: slideUp .25s ease;
+  }
+  @keyframes slideUp{from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+  .modal-handle{width:40px; height:5px; background:#E4DCE8; border-radius:10px; margin:0 auto 16px;}
+  .modal-title{font-family:'Baloo 2'; font-weight:700; font-size:19px; margin:0 0 16px;}
+  .modal-close{position:absolute; top:18px; right:20px; background:var(--white); border:none; width:34px; height:34px; border-radius:50%; font-size:15px; box-shadow:var(--shadow);}
+
+  /* ---------- QR block ---------- */
+  .qr-wrap{display:flex; flex-direction:column; align-items:center; padding:14px 0 6px;}
+  .qr-code{
+    width:170px; height:170px; border-radius:16px; background:#fff; border:1.5px solid #F0E6EC;
+    display:grid; grid-template-columns:repeat(7,1fr); grid-template-rows:repeat(7,1fr);
+    padding:14px; gap:3px; box-shadow:var(--shadow);
+  }
+  .qr-code div{border-radius:2px;}
+  .qr-code .on{background:var(--ink);}
+  .qr-code .off{background:transparent;}
+  .qr-caption{font-size:12px; color:var(--ink-soft); margin-top:12px;}
+  .qr-code-text{font-family:'Baloo 2'; font-weight:700; font-size:16px; color:var(--pink-text); letter-spacing:2px; margin-top:4px;}
+
+  /* ---------- Empty state ---------- */
+  .empty-state{text-align:center; padding:50px 20px 30px;}
+  .empty-emoji{font-size:52px; margin-bottom:14px;}
+  .empty-title{font-weight:700; font-size:15px; margin-bottom:6px;}
+  .empty-sub{font-size:12.5px; color:var(--ink-soft);}
+
+  /* ---------- Toast ---------- */
+  .toast{
+    position:fixed; left:50%; bottom:96px; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:#fff; padding:13px 22px; border-radius:30px;
+    font-size:13.5px; font-weight:600; box-shadow:0 12px 24px -8px rgba(0,0,0,0.3);
+    z-index:80; opacity:0; transition:all .3s ease; display:flex; align-items:center; gap:8px;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  /* ---------- Bottom nav ---------- */
+  .bottom-nav{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:16px; width:calc(100% - 32px); max-width:448px;
+    background:var(--white); border-radius:24px; box-shadow:0 16px 34px -12px rgba(58,50,71,0.28);
+    display:flex; justify-content:space-around; padding:10px 6px; z-index:40;
+  }
+  .nav-item{
+    background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:6px 10px; border-radius:14px; color:var(--ink-soft); font-size:10.5px; font-weight:600;
+  }
+  .nav-item .nicon{font-size:19px;}
+  .nav-item.active{color:var(--pink-text);}
+  .nav-item.active .nicon{transform:translateY(-1px);}
+
+  /* ---------- Auth ---------- */
+  .auth-wrap{min-height:100vh; display:flex; flex-direction:column; justify-content:center; padding:36px 26px;}
+  .auth-logo{font-size:52px; text-align:center; margin-bottom:6px;}
+  .auth-title{font-family:'Baloo 2'; font-weight:800; font-size:24px; text-align:center; color:var(--ink); margin:0 0 4px;}
+  .auth-sub{text-align:center; font-size:13px; color:var(--ink-soft); margin-bottom:28px;}
+  .auth-toggle{display:flex; gap:8px; margin-bottom:22px; background:var(--white); padding:5px; border-radius:16px; box-shadow:var(--shadow);}
+  .auth-toggle button{flex:1; padding:11px; border:none; border-radius:12px; font-weight:700; font-size:13.5px; background:transparent; color:var(--ink-soft);}
+  .auth-toggle button.active{background:var(--pink-deep); color:#fff;}
+  .divider-row{display:flex; align-items:center; gap:10px; margin:18px 0; color:var(--ink-soft); font-size:12px;}
+  .divider-row .line{flex:1; height:1px; background:#EFE6EC;}
+  .line-btn{
+    width:100%; padding:14px; border-radius:16px; border:1.5px solid #EFE6EC; background:#fff;
+    font-weight:700; font-size:14px; color:#06C755; display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+
+  a{color:inherit;}
+  ::selection{background:var(--pink-deep); color:#fff;}
+</style>
+</head>
+<body>
+
+<div id="app-shell">
+  <div id="content"></div>
+  <div class="bottom-nav" id="bottomNav" style="display:none;">
+    <button class="nav-item" data-nav="home"><span class="nicon">🏠</span>หน้าหลัก</button>
+    <button class="nav-item" data-nav="borrow"><span class="nicon">☂️</span>ยืม-คืน</button>
+    <button class="nav-item" data-nav="deposit"><span class="nicon">📦</span>ฝากของ</button>
+    <button class="nav-item" data-nav="lostfound"><span class="nicon">🔍</span>ของหาย</button>
+    <button class="nav-item" data-nav="profile"><span class="nicon">🙂</span>โปรไฟล์</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-sheet" id="modalSheet"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== MOCK DATA ===================== */
+const user = {
+  name: "น้องมะลิ",
+  room: "B-304",
+  points: 150,
+  history: [
+    {type:"return", text:"คืนร่ม 1 คัน", time:"เมื่อวาน 18:20", icon:"☂️"},
+    {type:"found", text:"เจอกุญแจห้องน้ำรวม + ได้รับคืนเรียบร้อย (+20 แต้ม)", time:"3 วันก่อน", icon:"🔑"},
+    {type:"borrow", text:"ยืมเครื่องดูดฝุ่น 1 วัน", time:"5 วันก่อน", icon:"🧹"},
+    {type:"deposit", text:"ฝากพัสดุให้ห้อง B-201", time:"สัปดาห์ก่อน", icon:"📦"},
+  ]
+};
+
+const categories = ["ทั้งหมด","อุปกรณ์ทำความสะอาด","ซ่อมแซม","ความบันเทิง","อื่นๆ"];
+const items = [
+  {id:1, name:"ร่มกันฝน", cat:"อื่นๆ", emoji:"☂️", status:"available", durations:["1 ชม.","1 วัน","3 วัน"]},
+  {id:2, name:"เตารีดไฟฟ้า", cat:"อุปกรณ์ทำความสะอาด", emoji:"🧺", status:"borrowed", durations:["1 ชม.","1 วัน"]},
+  {id:3, name:"เครื่องดูดฝุ่น", cat:"อุปกรณ์ทำความสะอาด", emoji:"🧹", status:"available", durations:["1 วัน","3 วัน"]},
+  {id:4, name:"ชุดไขควง", cat:"ซ่อมแซม", emoji:"🔧", status:"available", durations:["1 ชม.","1 วัน"]},
+  {id:5, name:"บอร์ดเกม Uno", cat:"ความบันเทิง", emoji:"🎲", status:"repair", durations:["1 วัน","3 วัน"]},
+  {id:6, name:"ค้อน + ตะปู", cat:"ซ่อมแซม", emoji:"🔨", status:"available", durations:["1 ชม.","1 วัน"]},
+];
+
+const deposits = [
+  {id:1, what:"กุญแจห้อง", forRoom:"B-201", note:"ฝากไว้ให้เพื่อน", eta:"วันนี้ 20:00", status:"รอรับ"},
+  {id:2, what:"พัสดุ Shopee", forRoom:"B-304", note:"กล่องขนาดกลาง", eta:"พรุ่งนี้เช้า", status:"รอรับ"},
+];
+
+const foundItems = [
+  {id:1, what:"กระเป๋าสตางค์สีน้ำตาล", place:"หน้าลิฟต์ชั้น 3", time:"วันนี้ 09:10", emoji:"👛", status:"รอเจ้าของ"},
+  {id:2, what:"หูฟังไร้สายสีขาว", place:"ห้องซักผ้า", time:"เมื่อวาน 21:40", emoji:"🎧", status:"รอเจ้าของ"},
+];
+const lostItems = [
+  {id:1, what:"ร่มพับสีดำ", place:"โรงอาหารชั้น 1", time:"2 วันก่อน", emoji:"☂️"},
+];
+
+const leaderboard = [
+  {name:"เจ้าของห้อง A-102", points:320},
+  {name:"เจ้าของห้อง B-215", points:275},
+  {name:"น้องมะลิ (คุณ)", points:150},
+  {name:"เจ้าของห้อง C-108", points:120},
+];
+
+const notifications = [
+  {icon:"🎉", title:"คุณได้รับ 20 แต้ม!", sub:"จากการคืนกุญแจห้องน้ำรวมให้เจ้าของ", time:"3 วันก่อน", unread:true},
+  {icon:"⏰", title:"ใกล้ถึงเวลาคืนแล้ว", sub:"เครื่องดูดฝุ่น — กำหนดคืนใน 2 ชม.", time:"5 วันก่อน", unread:true},
+  {icon:"📦", title:"มีของมาส่งถึงคุณ", sub:"พัสดุจากห้องนิติบุคคล พร้อมให้สแกนรับ", time:"สัปดาห์ก่อน", unread:false},
+  {icon:"🔍", title:"มีคนพบของที่ตรงกับที่คุณตามหา", sub:"ร่มพับสีดำ — กดดูรายละเอียด", time:"สัปดาห์ก่อน", unread:false},
+];
+
+/* ===================== STATE ===================== */
+let state = { page:"auth", filterCat:"ทั้งหมด", lfTab:"found", authMode:"login" };
+
+/* ===================== HELPERS ===================== */
+function el(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; }
+function showToast(msg, icon="✅"){
+  const t = document.getElementById('toast');
+  t.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+  t.classList.add('show');
+  clearTimeout(window._toastT);
+  window._toastT = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function openModal(html){
+  document.getElementById('modalSheet').innerHTML = `<div class="modal-handle"></div>` + html;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal(){ document.getElementById('modalOverlay').classList.remove('open'); }
+function qrBlock(codeText){
+  let cells = "";
+  // deterministic pseudo-random pattern from string
+  let seed = 0; for(const c of codeText) seed += c.charCodeAt(0);
+  for(let i=0;i<49;i++){
+    seed = (seed*9301+49297) % 233280;
+    const on = (seed/233280) > 0.42;
+    cells += `<div class="${on?'on':'off'}"></div>`;
+  }
+  return `<div class="qr-wrap">
+    <div class="qr-code">${cells}</div>
+    <div class="qr-caption">นำ QR นี้ไปสแกนที่จุดบริการ</div>
+    <div class="qr-code-text">${codeText}</div>
+  </div>`;
+}
+function statusMeta(status){
+  if(status==="available") return {label:"ว่าง", cls:"status-available", dot:"🟢"};
+  if(status==="borrowed") return {label:"ถูกยืม", cls:"status-borrowed", dot:"🔴"};
+  return {label:"กำลังซ่อมแซม", cls:"status-repair", dot:"🟡"};
+}
+function goto(page){ state.page = page; render(); window.scrollTo(0,0); }
+
+/* ===================== RENDER: SHELL PARTS ===================== */
+function topbar(title){
+  if(title){
+    return `<div class="page-title-row">
+      <button class="back-btn" data-back="1">←</button>
+      <h1 class="page-title">${title}</h1>
+    </div>`;
+  }
+  return `<div class="topbar">
+    <div class="greet-wrap">
+      <div class="avatar">🙂</div>
+      <div>
+        <div class="greet-name">สวัสดี, ${user.name}</div>
+        <div class="greet-room">ห้อง ${user.room}</div>
+      </div>
+    </div>
+    <button class="bell-btn" data-nav="notifications">🔔<span class="bell-dot"></span></button>
+  </div>`;
+}
+
+/* ===================== PAGES ===================== */
+function pageAuth(){
+  return `
+  <div class="auth-wrap">
+    <div class="auth-logo">🏠💗</div>
+    <h1 class="auth-title">Dormitory Share & Care</h1>
+    <div class="auth-sub">ยืม-คืน ฝากของ และตามหาของหาย ง่ายๆ ในที่เดียว</div>
+    <div class="auth-toggle">
+      <button data-authmode="login" class="${state.authMode==='login'?'active':''}">เข้าสู่ระบบ</button>
+      <button data-authmode="register" class="${state.authMode==='register'?'active':''}">สมัครสมาชิก</button>
+    </div>
+    <div class="field"><label>หมายเลขห้องพัก</label><input type="text" placeholder="เช่น B-304" value="B-304"></div>
+    <div class="field"><label>รหัสผ่าน</label><input type="password" placeholder="กรอกรหัสผ่าน" value="••••••••"></div>
+    <button class="btn-primary" data-do="login">${state.authMode==='login' ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}</button>
+    <div class="divider-row"><div class="line"></div>หรือ<div class="line"></div></div>
+    <button class="line-btn" data-do="login">💬 เข้าสู่ระบบด้วย Line</button>
+  </div>`;
+}
+
+function pageHome(){
+  return topbar() + `
+    <div class="points-card" id="pointsCard">
+      <div class="label">🪙 แต้มความดีของคุณ</div>
+      <div class="value"><span class="coin">🪙</span>${user.points} แต้ม</div>
+      <div class="sub">สะสมแต้มจากการทำความดีในหอพัก</div>
+    </div>
+
+    <div class="quick-grid">
+      <button class="quick-btn" data-nav="borrow">
+        <div class="qicon" style="background:var(--blue);">☂️</div>
+        <div class="qtitle">ยืม-คืนของ</div>
+        <div class="qsub">ร่ม เตารีด เครื่องมือ ฯลฯ</div>
+      </button>
+      <button class="quick-btn" data-nav="deposit">
+        <div class="qicon" style="background:var(--pink);">📦</div>
+        <div class="qtitle">ฝากของ</div>
+        <div class="qsub">ฝากกุญแจ พัสดุ ของชิ้นใหญ่</div>
+      </button>
+      <button class="quick-btn" data-nav="lostfound">
+        <div class="qicon" style="background:var(--yellow-bg);">🔍</div>
+        <div class="qtitle">ของหายได้คืน</div>
+        <div class="qsub">แจ้งเจอของ / ตามหาของ</div>
+      </button>
+      <button class="quick-btn" data-nav="profile">
+        <div class="qicon" style="background:var(--green-bg);">📜</div>
+        <div class="qtitle">ประวัติของฉัน</div>
+        <div class="qsub">ดูรายการที่ทำทั้งหมด</div>
+      </button>
+    </div>
+
+    <div class="section-title">กิจกรรมล่าสุด</div>
+    ${user.history.slice(0,2).map(h=>`
+      <div class="list-row">
+        <div class="row-icon">${h.icon}</div>
+        <div>
+          <div class="row-title">${h.text}</div>
+          <div class="row-meta">${h.time}</div>
+        </div>
+      </div>
+    `).join("")}
+  `;
+}
+
+function pageBorrow(){
+  const filtered = items.filter(i => state.filterCat==="ทั้งหมด" || i.cat===state.filterCat);
+  return topbar("ยืม-คืนของส่วนกลาง") + `
+    <div class="search-row">
+      <div class="search-box">🔎 <input type="text" placeholder="ค้นหาสิ่งของ..." id="searchInput"></div>
+    </div>
+    <div class="filter-chips">
+      ${categories.map(c=>`<button class="chip ${state.filterCat===c?'active':''}" data-cat="${c}">${c}</button>`).join("")}
+    </div>
+    <div class="item-grid">
+      ${filtered.map(i=>{
+        const s = statusMeta(i.status);
+        return `<button class="item-card" data-item="${i.id}">
+          <div class="item-img">${i.emoji}</div>
+          <div class="item-body">
+            <div class="item-name">${i.name}</div>
+            <div class="item-cat">${i.cat}</div>
+            <span class="status-badge ${s.cls}">${s.dot} ${s.label}</span>
+          </div>
+        </button>`;
+      }).join("")}
+    </div>
+    ${filtered.length===0 ? emptyState("📭","ไม่พบสิ่งของ","ลองค้นหาด้วยคำอื่น หรือเลือกหมวดหมู่ใหม่") : ""}
+  `;
+}
+
+function itemModal(item){
+  const s = statusMeta(item.status);
+  if(item.status !== "available"){
+    return `<h3 class="modal-title">${item.emoji} ${item.name}</h3>
+      <span class="status-badge ${s.cls}" style="margin-bottom:16px;">${s.dot} ${s.label}</span>
+      <p style="font-size:13.5px; color:var(--ink-soft); line-height:1.6;">ขณะนี้สิ่งของชิ้นนี้ยังไม่ว่าง กรุณาลองใหม่ภายหลัง หรือดูรายการอื่นที่พร้อมให้ยืม</p>
+      <button class="btn-ghost" data-close="1">ปิด</button>`;
+  }
+  return `<h3 class="modal-title">${item.emoji} ${item.name}</h3>
+    <div class="field">
+      <label>เลือกระยะเวลาที่ต้องการยืม</label>
+      <div class="duration-grid" id="durGrid">
+        ${item.durations.map((d,idx)=>`<div class="duration-opt ${idx===0?'active':''}" data-dur="${d}">${d}</div>`).join("")}
+      </div>
+    </div>
+    <button class="btn-primary" data-do="confirm-borrow" data-item="${item.id}">ยืนยันขอยืม</button>`;
+}
+
+function borrowSuccessModal(item, dur){
+  const code = "BR-" + item.id + "" + Math.floor(Math.random()*900+100);
+  return `<h3 class="modal-title">✅ ขอยืมสำเร็จ</h3>
+    <p style="font-size:13.5px; color:var(--ink-soft); margin-bottom:4px;">${item.emoji} ${item.name} · ระยะเวลา ${dur}</p>
+    ${qrBlock(code)}
+    <div class="card" style="margin-top:16px; background:var(--blue); box-shadow:none;">
+      <div style="font-size:12.5px; color:var(--blue-text); font-weight:600;">⏰ อย่าลืมนำมาคืนก่อนหมดเวลา ระบบจะแจ้งเตือนให้อัตโนมัติ</div>
+    </div>
+    <button class="btn-primary" style="margin-top:14px;" data-close="1">เสร็จสิ้น</button>`;
+}
+
+function returnFlowModal(){
+  return `<h3 class="modal-title">📦 แจ้งคืนของ</h3>
+    <p style="font-size:13px; color:var(--ink-soft); margin-bottom:14px;">เครื่องดูดฝุ่น · กำหนดคืน 2 ชม. จากนี้</p>
+    <div class="field">
+      <label>อัปโหลดรูปสภาพสิ่งของ (ตอนคืน)</label>
+      <div class="upload-box" id="uploadBox" data-upload="return">
+        <div class="up-icon">📷</div>
+        <div class="up-text">แตะเพื่อถ่ายรูป หรืออัปโหลดรูปภาพ</div>
+        <input type="file" accept="image/*" style="display:none" id="fileInput_return">
+      </div>
+    </div>
+    <button class="btn-primary" data-do="confirm-return">ยืนยันการคืนของ</button>`;
+}
+
+function emptyState(emoji, title, sub){
+  return `<div class="empty-state">
+    <div class="empty-emoji">${emoji}</div>
+    <div class="empty-title">${title}</div>
+    <div class="empty-sub">${sub}</div>
+  </div>`;
+}
+
+function pageDeposit(){
+  return topbar("ระบบฝากของ") + `
+    <button class="btn-primary" data-do="new-deposit" style="margin-bottom:20px;">➕ สร้างรายการฝากของใหม่</button>
+    <div class="section-title">รายการฝากของ</div>
+    ${deposits.length===0 ? emptyState("📦","ยังไม่มีของฝาก","สร้างรายการฝากของชิ้นแรกของคุณได้เลย") :
+      deposits.map(d=>`
+      <div class="list-row" data-deposit="${d.id}" style="cursor:pointer;">
+        <div class="row-icon" style="background:var(--pink);">📦</div>
+        <div style="flex:1;">
+          <div class="row-title">${d.what}</div>
+          <div class="row-sub">ฝากให้ห้อง ${d.forRoom} · ${d.note}</div>
+          <div class="row-meta">คาดว่าจะมารับ: ${d.eta}</div>
+          <span class="pill" style="background:var(--yellow-bg); color:#B9790E;">${d.status}</span>
+        </div>
+      </div>
+    `).join("")}
+  `;
+}
+
+function newDepositModal(){
+  return `<h3 class="modal-title">📦 สร้างรายการฝากของ</h3>
+    <div class="field"><label>ฝากอะไร?</label><input type="text" placeholder="เช่น กุญแจ, พัสดุ, กระเป๋า"></div>
+    <div class="field"><label>ฝากให้ใคร? (หมายเลขห้อง)</label><input type="text" placeholder="เช่น B-201"></div>
+    <div class="field"><label>คาดว่าจะมารับเมื่อไหร่?</label><input type="text" placeholder="เช่น วันนี้ 20:00 น."></div>
+    <div class="field">
+      <label>อัปโหลดรูปภาพสิ่งของ</label>
+      <div class="upload-box" data-upload="deposit">
+        <div class="up-icon">📷</div>
+        <div class="up-text">แตะเพื่อถ่ายรูป หรืออัปโหลดรูปภาพ</div>
+        <input type="file" accept="image/*" style="display:none" id="fileInput_deposit">
+      </div>
+    </div>
+    <button class="btn-primary" data-do="confirm-deposit">สร้างรายการฝาก</button>`;
+}
+
+function depositSuccessModal(){
+  const code = "DP-" + Math.floor(Math.random()*9000+1000);
+  return `<h3 class="modal-title">✅ สร้างรายการฝากสำเร็จ</h3>
+    <p style="font-size:13.5px; color:var(--ink-soft); margin-bottom:4px;">ระบบได้ส่งแจ้งเตือนพร้อม QR Code ไปยังผู้รับแล้ว</p>
+    ${qrBlock(code)}
+    <button class="btn-primary" style="margin-top:16px;" data-close="1">เสร็จสิ้น</button>`;
+}
+
+function pageLostFound(){
+  const tab = state.lfTab;
+  return topbar("ของหายได้คืน") + `
+    <div class="tabbar">
+      <button class="tabbtn ${tab==='found'?'active':''}" data-lftab="found">🎁 พบของ</button>
+      <button class="tabbtn ${tab==='lost'?'active':''}" data-lftab="lost">📢 ตามหาของ</button>
+      <button class="tabbtn ${tab==='board'?'active':''}" data-lftab="board">🏆 อันดับ</button>
+    </div>
+
+    ${tab==='found' ? `
+      <button class="btn-primary" data-do="new-found" style="margin-bottom:18px;">➕ แจ้งเจอของหาย</button>
+      ${foundItems.length===0 ? emptyState("📦","ยังไม่มีของหายในขณะนี้","เยี่ยมไปเลย!") :
+        foundItems.map(f=>`
+        <div class="list-row">
+          <div class="row-icon" style="background:var(--blue);">${f.emoji}</div>
+          <div style="flex:1;">
+            <div class="row-title">${f.what}</div>
+            <div class="row-sub">พบที่: ${f.place} · ${f.time}</div>
+            <span class="pill" style="background:var(--yellow-bg); color:#B9790E;">${f.status}</span>
+            <button class="btn-secondary" style="margin-top:10px;" data-claim="${f.id}">✋ นี่คือของฉัน</button>
+          </div>
+        </div>
+      `).join("")}
+    ` : ""}
+
+    ${tab==='lost' ? `
+      <button class="btn-primary" data-do="new-lost" style="margin-bottom:18px;">➕ ประกาศตามหาของ</button>
+      ${lostItems.length===0 ? emptyState("🔍","ยังไม่มีประกาศตามหาของ","หวังว่าจะไม่มีใครทำของหายนะ!") :
+        lostItems.map(f=>`
+        <div class="list-row">
+          <div class="row-icon" style="background:var(--pink);">${f.emoji}</div>
+          <div>
+            <div class="row-title">${f.what}</div>
+            <div class="row-sub">หายที่: ${f.place} · ${f.time}</div>
+          </div>
+        </div>
+      `).join("")}
+    ` : ""}
+
+    ${tab==='board' ? `
+      <div class="card" style="background:linear-gradient(135deg,var(--blue-deep),var(--blue)); box-shadow:none; margin-bottom:18px;">
+        <div style="font-weight:700; font-family:'Baloo 2'; color:#fff; font-size:15px;">🏆 คนดีศรีหอพัก ประจำเดือน</div>
+        <div style="font-size:12px; color:#fff; opacity:.9; margin-top:2px;">ใครเก็บของคืนได้มากสุด ได้แต้มมากสุด!</div>
+      </div>
+      ${leaderboard.map((p,idx)=>`
+        <div class="list-row">
+          <div class="row-icon" style="background:${idx===0?'var(--yellow-bg)':'var(--pink)'};">${idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':'🎖️'}</div>
+          <div style="flex:1; display:flex; align-items:center; justify-content:space-between;">
+            <div class="row-title" style="margin:0;">${p.name}</div>
+            <div style="font-weight:700; color:var(--pink-text); font-family:'Baloo 2';">${p.points} 🪙</div>
+          </div>
+        </div>
+      `).join("")}
+    ` : ""}
+  `;
+}
+
+function newFoundModal(){
+  return `<h3 class="modal-title">🎁 แจ้งเจอของหาย</h3>
+    <div class="field"><label>เจออะไร?</label><input type="text" placeholder="เช่น กระเป๋าสตางค์, หูฟัง"></div>
+    <div class="field"><label>เจอที่ไหน?</label><input type="text" placeholder="เช่น หน้าลิฟต์ชั้น 3"></div>
+    <div class="field"><label>วัน-เวลาที่เจอ</label><input type="text" placeholder="เช่น วันนี้ 09:00 น."></div>
+    <div class="field">
+      <label>อัปโหลดรูปภาพของที่เจอ</label>
+      <div class="upload-box" data-upload="found">
+        <div class="up-icon">📷</div>
+        <div class="up-text">แตะเพื่อถ่ายรูป หรืออัปโหลดรูปภาพ</div>
+        <input type="file" accept="image/*" style="display:none" id="fileInput_found">
+      </div>
+    </div>
+    <button class="btn-primary" data-do="confirm-found">ส่งเรื่อง</button>`;
+}
+function newLostModal(){
+  return `<h3 class="modal-title">📢 ประกาศตามหาของ</h3>
+    <div class="field"><label>ของที่หายคืออะไร?</label><input type="text" placeholder="เช่น ร่มพับสีดำ"></div>
+    <div class="field"><label>หายที่ไหน / เมื่อไหร่ (โดยประมาณ)</label><input type="text" placeholder="เช่น โรงอาหาร เมื่อวานเย็น"></div>
+    <div class="field">
+      <label>รูปภาพอ้างอิง (ถ้ามี)</label>
+      <div class="upload-box" data-upload="lost">
+        <div class="up-icon">📷</div>
+        <div class="up-text">แตะเพื่อถ่ายรูป หรืออัปโหลดรูปภาพ</div>
+        <input type="file" accept="image/*" style="display:none" id="fileInput_lost">
+      </div>
+    </div>
+    <button class="btn-primary" data-do="confirm-lost">ประกาศตามหา</button>`;
+}
+function claimModal(item){
+  return `<h3 class="modal-title">✋ ยืนยันว่าเป็นของฉัน</h3>
+    <p style="font-size:13px; color:var(--ink-soft); margin-bottom:14px;">${item.emoji} ${item.what}</p>
+    <div class="field"><label>อธิบายรายละเอียดเพิ่มเติม เพื่อให้นิติบุคคลตรวจสอบก่อนมารับ</label>
+      <textarea placeholder="เช่น ลักษณะเฉพาะ, สิ่งของด้านใน..."></textarea>
+    </div>
+    <button class="btn-primary" data-do="confirm-claim">ส่งคำขอรับของ</button>`;
+}
+
+function pageProfile(){
+  return topbar("โปรไฟล์ของฉัน") + `
+    <div class="card" style="text-align:center;">
+      <div class="avatar" style="width:64px;height:64px;font-size:30px;margin:0 auto 10px;">🙂</div>
+      <div style="font-family:'Baloo 2'; font-weight:700; font-size:17px;">${user.name}</div>
+      <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:14px;">ห้อง ${user.room}</div>
+      <div class="points-card" style="margin-bottom:0;">
+        <div class="label">🪙 แต้มความดีของคุณ</div>
+        <div class="value" style="justify-content:center;"><span class="coin">🪙</span>${user.points} แต้ม</div>
+      </div>
+    </div>
+    <div class="section-title">ประวัติการทำรายการ</div>
+    ${user.history.map(h=>`
+      <div class="list-row">
+        <div class="row-icon">${h.icon}</div>
+        <div>
+          <div class="row-title">${h.text}</div>
+          <div class="row-meta">${h.time}</div>
+        </div>
+      </div>
+    `).join("")}
+    <button class="btn-ghost" style="margin-top:6px;" data-do="logout">ออกจากระบบ</button>
+  `;
+}
+
+function pageNotifications(){
+  return topbar("การแจ้งเตือน") + `
+    ${notifications.length===0 ? emptyState("🔔","ยังไม่มีการแจ้งเตือน","เมื่อมีความเคลื่อนไหวจะแจ้งให้ทราบที่นี่") :
+      notifications.map(n=>`
+      <div class="list-row" style="background:${n.unread?'#fff':'#fff'}; ${n.unread?'border:1.5px solid var(--pink-deep);':''}">
+        <div class="row-icon" style="background:${n.unread?'var(--pink)':'var(--blue)'};">${n.icon}</div>
+        <div>
+          <div class="row-title">${n.title}</div>
+          <div class="row-sub">${n.sub}</div>
+          <div class="row-meta">${n.time}</div>
+        </div>
+      </div>
+    `).join("")}
+  `;
+}
+
+/* ===================== MAIN RENDER ===================== */
+function render(){
+  const content = document.getElementById('content');
+  const nav = document.getElementById('bottomNav');
+  if(state.page === "auth"){
+    nav.style.display = "none";
+    content.style.paddingBottom = "0";
+    content.innerHTML = pageAuth();
+  } else {
+    nav.style.display = "flex";
+    content.style.paddingBottom = "110px";
+    const pages = {
+      home: pageHome, borrow: pageBorrow, deposit: pageDeposit,
+      lostfound: pageLostFound, profile: pageProfile, notifications: pageNotifications
+    };
+    content.innerHTML = pages[state.page] ? pages[state.page]() : pageHome();
+    document.querySelectorAll('.nav-item').forEach(b=>{
+      b.classList.toggle('active', b.dataset.nav === state.page);
+    });
+  }
+}
+
+/* ===================== EVENTS (delegated) ===================== */
+document.body.addEventListener('click', (e)=>{
+  const t = e.target.closest('[data-nav], [data-back], [data-authmode], [data-do], [data-cat], [data-item], [data-close], [data-lftab], [data-dur], [data-claim], [data-upload], [data-deposit]');
+  if(!t) return;
+
+  if(t.dataset.nav){ goto(t.dataset.nav); return; }
+  if(t.dataset.back !== undefined){ goto('home'); return; }
+  if(t.dataset.authmode){ state.authMode = t.dataset.authmode; render(); return; }
+  if(t.dataset.cat){ state.filterCat = t.dataset.cat; render(); return; }
+  if(t.dataset.lftab){ state.lfTab = t.dataset.lftab; render(); return; }
+  if(t.dataset.close !== undefined){ closeModal(); return; }
+  if(t.dataset.dur){
+    document.querySelectorAll('.duration-opt').forEach(d=>d.classList.remove('active'));
+    t.classList.add('active');
+    return;
+  }
+  if(t.dataset.upload){
+    document.getElementById('fileInput_' + t.dataset.upload).click();
+    return;
+  }
+  if(t.dataset.deposit){
+    const d = deposits.find(x=>x.id==t.dataset.deposit);
+    openModal(`<h3 class="modal-title">📦 ${d.what}</h3>
+      <p style="font-size:13px;color:var(--ink-soft);">ฝากให้ห้อง ${d.forRoom} · ${d.note}<br>คาดว่าจะมารับ: ${d.eta}</p>
+      ${qrBlock("DP-"+d.id+"00"+d.id)}
+      <button class="btn-ghost" style="margin-top:12px;" data-close="1">ปิด</button>`);
+    return;
+  }
+  if(t.dataset.claim){
+    const it = foundItems.find(x=>x.id==t.dataset.claim);
+    openModal(claimModal(it));
+    return;
+  }
+  if(t.dataset.item){
+    const it = items.find(x=>x.id==t.dataset.item);
+    if(it.status === 'available'){
+      openModal(itemModal(it) + `<div style="text-align:center;margin-top:14px;">
+        <button class="btn-ghost" data-simulate-return="${it.id}" style="font-size:12px;padding:10px;">หรือ จำลอง: แจ้งคืนของชิ้นนี้</button></div>`);
+    } else {
+      openModal(itemModal(it));
+    }
+    return;
+  }
+
+  switch(t.dataset.do){
+    case 'login':
+      goto('home');
+      showToast('เข้าสู่ระบบสำเร็จ ยินดีต้อนรับกลับมา!', '👋');
+      break;
+    case 'new-deposit': openModal(newDepositModal()); break;
+    case 'confirm-deposit': openModal(depositSuccessModal()); break;
+    case 'new-found': openModal(newFoundModal()); break;
+    case 'confirm-found':
+      closeModal();
+      showToast('แจ้งเจอของหายเรียบร้อย ขอบคุณสำหรับความดีของคุณ!', '🎉');
+      break;
+    case 'new-lost': openModal(newLostModal()); break;
+    case 'confirm-lost':
+      closeModal();
+      showToast('ประกาศตามหาของเรียบร้อยแล้ว', '📢');
+      break;
+    case 'confirm-claim':
+      closeModal();
+      showToast('ส่งคำขอรับของแล้ว รอนิติบุคคลตรวจสอบ', '✋');
+      break;
+    case 'confirm-borrow': {
+      const it = items.find(x=>x.id==t.dataset.item);
+      const durEl = document.querySelector('.duration-opt.active');
+      const dur = durEl ? durEl.dataset.dur : it.durations[0];
+      openModal(borrowSuccessModal(it, dur));
+      user.points += 0;
+      break;
+    }
+    case 'confirm-return':
+      closeModal();
+      showToast('แจ้งคืนของสำเร็จ ขอบคุณที่ดูแลของส่วนกลาง!', '✅');
+      break;
+    case 'logout':
+      state.page = 'auth';
+      render();
+      break;
+  }
+
+  if(t.dataset.simulateReturn !== undefined){
+    openModal(returnFlowModal());
+  }
+});
+
+document.body.addEventListener('change', (e)=>{
+  if(e.target.type === 'file' && e.target.files[0]){
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      const box = e.target.closest('.upload-box');
+      let img = box.querySelector('.preview-img');
+      if(!img){ img = document.createElement('img'); img.className='preview-img'; box.appendChild(img); }
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(e.target.files[0]);
+  }
+});
+
+document.getElementById('modalOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'modalOverlay') closeModal();
+});
+
+/* trigger a little coin bounce whenever home page is shown */
+function bouncePoints(){
+  const card = document.getElementById('pointsCard');
+  if(card){ card.classList.add('bounce'); setTimeout(()=>card.classList.remove('bounce'), 700); }
+}
+const _origGoto = goto;
+goto = function(page){ _origGoto(page); if(page==='home') setTimeout(bouncePoints, 80); };
+
+render();
+</script>
+</body>
+</html>
