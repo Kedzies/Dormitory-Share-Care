@@ -1,138 +1,270 @@
-# 🔐 Project Group API
+# Dormitory Share & Care
 
-REST API สำหรับระบบ Project ของกลุ่ม พัฒนาด้วย **FastAPI + PostgreSQL** และจัดการ container ทั้งหมดด้วย **Docker & Docker Compose** ตามที่โจทย์กำหนด ครอบคลุมฟีเจอร์ **Authentication** และ **User Management** ที่ทำเสร็จสมบูรณ์แล้ว
+ระบบเว็บสำหรับนักศึกษาหอพัก เพื่อช่วยแบ่งปันสิ่งของ ฝากของ และติดตามของหายภายในหอพัก
 
-## ✅ ฟีเจอร์ที่ทำเสร็จแล้ว
+โปรเจกต์นี้ประกอบด้วย frontend แบบ HTML/CSS/JavaScript และ REST API ที่พัฒนาด้วย FastAPI, PostgreSQL และ Docker Compose
 
-### 1. Authentication (ล็อกอิน/สมัคร)
-| Method | Endpoint | คำอธิบาย |
-|---|---|---|
-| POST | `/register` | สมัครสมาชิก |
-| POST | `/login` | เข้าสู่ระบบ (รับ JWT access token กลับ) |
-| POST | `/logout` | ออกจากระบบ (revoke token ปัจจุบัน) |
-| POST | `/change-password` | เปลี่ยนรหัสผ่าน (ต้องล็อกอินก่อน) |
+## Features
 
-### 2. User Management (จัดการข้อมูล)
-| Method | Endpoint | คำอธิบาย |
-|---|---|---|
-| GET | `/me` | ดึงข้อมูลตัวเอง |
-| GET | `/users/{id}` | ดึงข้อมูล user ตาม id |
-| GET | `/users?page=&page_size=` | ดึงข้อมูล user ทั้งหมด (pagination) |
-| PUT | `/users/{id}` | แก้ไขข้อมูล user (แก้ได้เฉพาะบัญชีตัวเอง) |
-| DELETE | `/users/{id}` | ลบ user (ลบได้เฉพาะบัญชีตัวเอง) |
-| GET | `/check-username/{name}` | ตรวจสอบว่า username นี้ว่างไหม |
+### Frontend
 
-> 🔒 ทุก endpoint ในหมวด User Management (ยกเว้น `/check-username/{name}`) ต้องแนบ `Authorization: Bearer <token>` ที่ได้จาก `/login`
-> 🛡️ `/users/{id}` (PUT/DELETE) จำกัดสิทธิ์ให้แก้ไข/ลบได้เฉพาะบัญชีของตัวเองเท่านั้น เพื่อป้องกันผู้ใช้คนอื่นมาแก้ไขข้อมูลกัน — ถ้าต้องการสิทธิ์ระดับแอดมินในอนาคต แนะนำเพิ่ม field `role`/`is_admin` ใน model แล้วเช็กสิทธิ์เพิ่ม
+- หน้าเข้าสู่ระบบและสมัครสมาชิก
+- เก็บ JWT access token สำหรับ session ของผู้ใช้
+- แสดงข้อมูลผู้ใช้จาก API หลัง login
+- หน้าหลักสำหรับแต้มความดีและกิจกรรมล่าสุด
+- หน้ายืม-คืนของส่วนกลาง
+- หน้าฝากของ
+- หน้าของหายและของที่พบ
+- หน้าโปรไฟล์และการแจ้งเตือน
 
-## 🛠️ Tech Stack
+### Backend API
 
-- **FastAPI** — เว็บเฟรมเวิร์กสำหรับสร้าง REST API
-- **PostgreSQL 16** — ฐานข้อมูลหลัก
-- **SQLAlchemy** — ORM เชื่อมต่อฐานข้อมูล
-- **python-jose** — สร้าง/ตรวจสอบ JWT access token
-- **passlib (bcrypt)** — เข้ารหัสรหัสผ่าน
-- **pgAdmin 4** — เครื่องมือจัดการฐานข้อมูลผ่านหน้าเว็บ
-- **Docker & Docker Compose** — จัดการ container ทั้งหมด (db, pgadmin, api)
+- สมัครสมาชิกและเข้าสู่ระบบด้วย JWT
+- ออกจากระบบและ revoke token
+- เปลี่ยนรหัสผ่าน
+- ดึงข้อมูลผู้ใช้ปัจจุบัน
+- แสดงรายการผู้ใช้แบบ pagination
+- แก้ไขหรือลบบัญชีของตัวเอง
+- ตรวจสอบ username ว่าว่างหรือไม่
+- Swagger UI สำหรับทดสอบ API
 
-## 📁 โครงสร้างโปรเจกต์
+## Tech Stack
 
-```
+- **Frontend:** HTML, CSS, JavaScript
+- **Backend:** FastAPI, Python 3.12
+- **Database:** PostgreSQL 16
+- **ORM:** SQLAlchemy
+- **Authentication:** JWT, python-jose, bcrypt
+- **Database Admin:** pgAdmin 4
+- **Container:** Docker, Docker Compose
+
+## Project Structure
+
+```text
 .
-├── docker-compose.yml
 ├── .env.example
-└── api/
-    ├── Dockerfile
-    ├── requirements.txt
-    └── app/
-        ├── main.py         # entrypoint, รวม router + CORS
-        ├── database.py     # engine, session, get_db
-        ├── models.py       # SQLAlchemy model: User
-        ├── schemas.py      # Pydantic schemas (request/response)
-        ├── security.py     # hash password, JWT, token blacklist
-        ├── deps.py         # dependency: get_current_user
-        └── routers/
-            ├── auth.py     # /register /login /logout /change-password
-            └── users.py    # /me /users /users/{id} /check-username/{name}
+├── docker-compose.yml
+├── README.md
+├── api/
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── app/
+│       ├── main.py        # FastAPI entrypoint และ CORS
+│       ├── database.py    # การเชื่อมต่อฐานข้อมูล
+│       ├── models.py      # SQLAlchemy models
+│       ├── schemas.py     # Pydantic schemas
+│       ├── security.py    # Password hashing และ JWT
+│       ├── deps.py        # Authentication dependencies
+│       └── routers/
+│           ├── auth.py    # Authentication endpoints
+│           └── users.py   # User management endpoints
+└── ../index.html          # Frontend หลักของระบบ
 ```
 
-## 🚀 วิธีรันโปรเจกต์
+## Requirements
 
-### 1. เตรียมไฟล์ environment
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- Git
+- Web browser
+- VS Code และ extension **Five Server** หรือ **Live Server** สำหรับเปิด frontend
+
+## Installation
+
+Clone repository:
+
+```bash
+git clone https://github.com/Kedzies/Dormitory-Share-Care.git
+cd Dormitory-Share-Care
+```
+
+สร้างไฟล์ environment จากตัวอย่าง:
+
+### Windows PowerShell
+
+```powershell
+Copy-Item .env.example .env
+```
+
+### macOS / Linux / Git Bash
+
 ```bash
 cp .env.example .env
 ```
-แก้ค่าต่างๆ ใน `.env` ตามต้องการ (โดยเฉพาะ `SECRET_KEY` ควรเปลี่ยนเป็นค่าสุ่ม เช่น `openssl rand -hex 32`)
 
-### 2. สั่งรันทุก service ด้วย Docker Compose
+ก่อนใช้งานจริง ควรแก้ค่า `SECRET_KEY` ในไฟล์ `.env` ให้เป็นค่าสุ่มที่คาดเดาได้ยาก
+
+## Run Backend
+
+เปิด Docker Desktop ก่อน จากนั้นรันคำสั่งจากโฟลเดอร์ repository:
+
 ```bash
 docker compose up -d --build
 ```
-คำสั่งนี้จะสร้าง 3 container พร้อมกัน:
-- **db** — PostgreSQL ที่พอร์ต `5432`
-- **pgadmin** — pgAdmin ที่พอร์ต `5050`
-- **api** — FastAPI ที่พอร์ต `8000`
 
-### 3. ตรวจสอบว่าทำงานสำเร็จ
+ตรวจสอบสถานะ services:
+
 ```bash
 docker compose ps
 ```
-ทุก service ควรมีสถานะ running
 
-### 4. เปิดใช้งาน API
-- Swagger UI (ทดสอบ API ได้ทันที): **http://localhost:8000/docs**
-- ReDoc: **http://localhost:8000/redoc**
-- Health check: **http://localhost:8000/health**
+ถ้าทำงานปกติจะมี services ต่อไปนี้:
 
-### 5. เปิดใช้งาน pgAdmin
-1. เข้า **http://localhost:5050** แล้วล็อกอินด้วยอีเมล/รหัสผ่านที่ตั้งไว้ใน `.env` (ค่าเริ่มต้น: `admin@example.com` / `admin123`)
-2. เพิ่ม Server ใหม่ → แท็บ **Connection** กรอก:
-   - Host: `db` (ชื่อ service ใน docker-compose ไม่ใช่ `localhost`)
-   - Port: `5432`
-   - Username / Password: ตามค่าใน `.env` (`POSTGRES_USER` / `POSTGRES_PASSWORD`)
+| Service | URL / Port | รายละเอียด |
+|---|---|---|
+| API | http://localhost:8000 | FastAPI backend |
+| Swagger UI | http://localhost:8000/docs | เอกสารและหน้าทดสอบ API |
+| ReDoc | http://localhost:8000/redoc | เอกสาร API แบบ ReDoc |
+| Health check | http://localhost:8000/health | ตรวจสอบสถานะ API |
+| PostgreSQL | localhost:5432 | ฐานข้อมูล |
+| pgAdmin | http://localhost:5050 | จัดการฐานข้อมูลผ่านเว็บ |
 
-### 6. ปิดการทำงาน
-```bash
-docker compose down          # หยุดและลบ container/network
-docker compose down -v       # หยุดและลบ volume ฐานข้อมูลด้วย (ข้อมูลหายทั้งหมด)
+ทดสอบ health check:
+
+```powershell
+Invoke-RestMethod http://localhost:8000/health
 ```
 
-## 🧪 ตัวอย่างการทดสอบผ่าน curl
+ผลลัพธ์ที่คาดหวัง:
 
-```bash
-# 1) สมัครสมาชิก
-curl -X POST http://localhost:8000/register \
-  -H "Content-Type: application/json" \
-  -d '{"username":"boonj","password":"secret123","email":"boonj@example.com"}'
-
-# 2) เข้าสู่ระบบ (รูปแบบ form-urlencoded ตามมาตรฐาน OAuth2)
-curl -X POST http://localhost:8000/login \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=boonj&password=secret123"
-# ตอบกลับ: {"access_token": "...", "token_type": "bearer"}
-
-# 3) ดึงข้อมูลตัวเอง (แนบ token ที่ได้จากขั้นตอนที่ 2)
-curl http://localhost:8000/me \
-  -H "Authorization: Bearer <ACCESS_TOKEN>"
-
-# 4) ตรวจสอบ username ว่าง
-curl http://localhost:8000/check-username/boonj
+```text
+status
+------
+ok
 ```
 
-## 📌 หมายเหตุด้านความปลอดภัย/ข้อจำกัด (สำหรับพัฒนาต่อ)
+## Run Frontend
 
-- `/logout` ใช้วิธี revoke token เก็บใน memory ของ container — ใช้ได้ดีสำหรับ 1 instance/โปรเจกต์เรียน แต่ถ้า deploy จริงแบบหลาย instance ควรย้ายไปเก็บใน Redis แทน
-- ตอนนี้สร้างตารางฐานข้อมูลอัตโนมัติด้วย `Base.metadata.create_all()` ตอน service เริ่มทำงาน เหมาะกับ dev/demo — ถ้าจะทำ production จริงแนะนำใช้ **Alembic** สำหรับจัดการ migration แทน
-- ยังไม่มีระบบ role/admin แยกสิทธิ์ ตอนนี้ทุก user แก้ไข/ลบได้เฉพาะบัญชีตัวเอง
+ไฟล์ frontend อยู่ที่ `../index.html` เมื่อมองจากโฟลเดอร์ `project` หรืออยู่ที่ root ของ repository ที่ clone มาด้วยโครงสร้างปัจจุบัน
 
-## 📋 งานส่วนถัดไป (ยังไม่ได้ทำในรอบนี้)
+เปิดโฟลเดอร์ repository หลักใน VS Code แล้วใช้ Five Server หรือ Live Server เปิด `index.html` จากนั้นเปิด URL ที่ extension แสดงให้ เช่น:
 
-รายการนี้อยู่ในสเปกของกลุ่มแต่ยังไม่ได้ทำในรอบนี้ (ยังไม่ได้ติ๊ก `[x]`) รอโจทย์/รายละเอียดเพิ่มเติมในรอบถัดไป — ถ้าพร้อมให้ทำต่อแจ้งได้เลย
+```text
+http://127.0.0.1:5500/index.html
+```
 
-- [ ] ระบบอื่นๆ ที่กลุ่มจะกำหนดเพิ่มเติมนอกเหนือจาก Authentication และ User Management
+Frontend จะเชื่อมต่อ API ที่:
 
----
+```text
+http://localhost:8000
+```
 
-## ⚠️ หมายเหตุเกี่ยวกับไฟล์ที่แนบมา
+## Test Authentication
 
-ไฟล์ `files_example.rar` ที่แนบมาด้วยไม่สามารถเปิด/แตกไฟล์ได้ในสภาพแวดล้อมนี้ (ไม่มีเครื่องมือแตกไฟล์ .rar และไม่มีการเชื่อมต่ออินเทอร์เน็ตให้ติดตั้งเพิ่ม) โปรเจกต์นี้จึงสร้างขึ้นจากคำอธิบายในข้อความ (Postgres + pgAdmin + FastAPI ผ่าน Docker Compose) และเนื้อหาในเอกสารประกอบการสอน Docker & FastAPI ที่แนบมาแทน ถ้าในไฟล์ rar มีโค้ดตัวอย่างที่ต้องการให้อ้างอิงเพิ่มเติม รบกวนแตกไฟล์แล้วอัปโหลดใหม่เป็น `.zip` หรือคัดลอกโค้ดมาวางในแชทได้เลยค่ะ
+### ผ่านหน้าเว็บ
+
+1. เปิด frontend
+2. เลือก **สมัครสมาชิก**
+3. กรอก username อย่างน้อย 3 ตัวอักษร
+4. กรอกรหัสผ่านอย่างน้อย 6 ตัวอักษร
+5. กดสมัครสมาชิก
+6. ระบบจะ login และโหลดข้อมูลผู้ใช้จาก `/me` อัตโนมัติ
+7. กดออกจากระบบ แล้วทดสอบ login ใหม่
+
+### ผ่าน PowerShell
+
+สมัครสมาชิก:
+
+```powershell
+$body = @{
+  username = "demo_user"
+  password = "secret123"
+  full_name = "Demo User"
+  email = "demo@example.com"
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+  -Uri http://localhost:8000/register `
+  -Method Post `
+  -ContentType "application/json" `
+  -Body $body
+```
+
+เข้าสู่ระบบเพื่อรับ token:
+
+```powershell
+$login = Invoke-RestMethod `
+  -Uri http://localhost:8000/login `
+  -Method Post `
+  -ContentType "application/x-www-form-urlencoded" `
+  -Body @{ username = "demo_user"; password = "secret123" }
+
+$token = $login.access_token
+```
+
+เรียกข้อมูลผู้ใช้ปัจจุบัน:
+
+```powershell
+Invoke-RestMethod `
+  -Uri http://localhost:8000/me `
+  -Headers @{ Authorization = "Bearer $token" }
+```
+
+## API Endpoints
+
+### Authentication
+
+| Method | Endpoint | Auth | รายละเอียด |
+|---|---|---:|---|
+| POST | `/register` | No | สมัครสมาชิก |
+| POST | `/login` | No | เข้าสู่ระบบและรับ JWT |
+| POST | `/logout` | Yes | ออกจากระบบ |
+| POST | `/change-password` | Yes | เปลี่ยนรหัสผ่าน |
+
+### User Management
+
+| Method | Endpoint | Auth | รายละเอียด |
+|---|---|---:|---|
+| GET | `/me` | Yes | ดึงข้อมูลผู้ใช้ปัจจุบัน |
+| GET | `/users` | Yes | แสดงผู้ใช้แบบ pagination |
+| GET | `/users/{id}` | Yes | ดึงข้อมูลผู้ใช้ตาม ID |
+| PUT | `/users/{id}` | Yes | แก้ไขข้อมูลบัญชีตัวเอง |
+| DELETE | `/users/{id}` | Yes | ลบบัญชีตัวเอง |
+| GET | `/check-username/{name}` | No | ตรวจสอบ username |
+
+## Stop Services
+
+หยุด services แต่เก็บข้อมูล PostgreSQL ไว้:
+
+```bash
+docker compose down
+```
+
+หยุด services และลบข้อมูลฐานข้อมูลทั้งหมด:
+
+```bash
+docker compose down -v
+```
+
+## Troubleshooting
+
+### Docker Engine ไม่ทำงาน
+
+ถ้าเห็นข้อความ `dockerDesktopLinuxEngine` หรือ `The system cannot find the file specified` ให้เปิด Docker Desktop และรอจนสถานะเป็น **Running** จากนั้นลองใหม่:
+
+```powershell
+docker info
+docker compose up -d --build
+```
+
+### ดู log ของ API
+
+```bash
+docker compose logs -f api
+```
+
+### Port ถูกใช้งานอยู่
+
+ตรวจสอบว่าพอร์ต `8000`, `5432` หรือ `5050` ถูกใช้งานโดยโปรแกรมอื่นหรือไม่ แล้วหยุดโปรแกรมนั้นก่อนเริ่ม services
+
+## Current Limitations
+
+- ฟีเจอร์ Authentication และ User Management เชื่อมต่อฐานข้อมูลจริงแล้ว
+- ข้อมูลยืม-คืน, ฝากของ, ของหาย และการแจ้งเตือนใน frontend ยังเป็น mock data
+- การเข้าสู่ระบบด้วย LINE ยังไม่เชื่อมต่อ OAuth จริง
+- token revoke ถูกเก็บไว้ใน memory เหมาะสำหรับการเรียนหรือ demo; production ควรใช้ Redis
+- การสร้างตารางใช้ `Base.metadata.create_all()`; production ควรใช้ Alembic migrations
+- ยังไม่มีระบบ role หรือ admin
+
+## License
+
+โปรเจกต์นี้จัดทำเพื่อการศึกษาและพัฒนาระบบต้นแบบ
