@@ -41,13 +41,13 @@
 
 ### Technology stack
 
-![Technology stack diagram](docs/tech-stack.png)
+![Technology stack diagram](tech-stack.png)
 
 Frontend เป็น mobile-first SPA (HTML/CSS/JS ล้วน) คุยกับ FastAPI ผ่าน REST/JSON แล้วเก็บข้อมูลใน PostgreSQL ทั้งหมดรันในคอนเทนเนอร์เดียวผ่าน Docker Compose ตอนนี้ router ที่ทำงานจริงมีแค่ Auth กับ Users (สีเขียวในภาพ) ส่วนที่เหลือ (Borrowing, Deposits, Lost & found, Karma points) ยังเป็นแผนที่วางโครงไว้เฉยๆ (สีครีม)
 
 ### แนวทางขยายระบบในอนาคต
 
-![Microservices evolution diagram](docs/microservices-evolution.png)
+![Microservices evolution diagram](microservices-evolution.png)
 
 ตอนนี้ backend เป็น modular monolith (1 container, แบ่งเป็นโมดูลผ่าน `routers/`) ถ้าในอนาคตระบบต้องรองรับผู้ใช้จำนวนมากขึ้นจริง สามารถแยกแต่ละโมดูลออกเป็น microservice ของตัวเอง พร้อม API Gateway และฐานข้อมูลแยกต่อ service ได้ — ไม่จำเป็นต้องทำตอนนี้ แต่ออกแบบโครงสร้างโค้ดให้รองรับการแยกในอนาคตไว้แล้ว
 
