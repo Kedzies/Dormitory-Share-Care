@@ -363,8 +363,68 @@ const notifications = [
   {icon:"🔍", title:"มีคนพบของที่ตรงกับที่คุณตามหา", sub:"ร่มพับสีดำ — กดดูรายละเอียด", time:"สัปดาห์ก่อน", unread:false},
 ];
 
+/* ===================== API CONFIG ===================== */
+// เปลี่ยนค่านี้ถ้า backend รันอยู่คนละ host/port หรือ deploy ขึ้นเซิร์ฟเวอร์จริงแล้ว
+const API_BASE_URL = "http://localhost:8000";
+let authToken = localStorage.getItem('dsc_token') || null;
+
+function parseApiError(data, fallback){
+  if(!data) return fallback;
+  if(typeof data.detail === 'string') return data.detail;
+  if(Array.isArray(data.detail)){
+    // FastAPI validation error format: [{loc:[...], msg:"...", type:"..."}]
+    return data.detail.map(d=>{
+      const field = Array.isArray(d.loc) ? d.loc[d.loc.length-1] : '';
+      return (field ? field + ': ' : '') + (d.msg || 'ข้อมูลไม่ถูกต้อง');
+    }).join(' / ');
+  }
+  return fallback;
+}
+
+async function apiRegister(username, email, password){
+  const res = await fetch(`${API_BASE_URL}/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, email, password })
+  });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(parseApiError(data, 'สมัครสมาชิกไม่สำเร็จ (username อาจถูกใช้แล้ว)'));
+  return data;
+}
+
+async function apiLogin(username, password){
+  const body = new URLSearchParams();
+  body.append('username', username);
+  body.append('password', password);
+  const res = await fetch(`${API_BASE_URL}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body
+  });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(parseApiError(data, 'เข้าสู่ระบบไม่สำเร็จ ตรวจสอบหมายเลขห้อง/รหัสผ่าน'));
+  return data; // { access_token, token_type }
+}
+
+async function apiMe(token){
+  const res = await fetch(`${API_BASE_URL}/me`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if(!res.ok) throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+  return res.json();
+}
+
+async function apiLogout(token){
+  try{
+    await fetch(`${API_BASE_URL}/logout`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+  }catch(e){ /* เน็ตหลุดตอน logout ไม่เป็นไร เคลียร์ token ฝั่ง client ต่อได้เลย */ }
+}
+
 /* ===================== STATE ===================== */
-let state = { page:"auth", filterCat:"ทั้งหมด", lfTab:"found", authMode:"login" };
+let state = { page:"auth", filterCat:"ทั้งหมด", lfTab:"found", authMode:"login", authError:null, authLoading:false };
 
 /* ===================== HELPERS ===================== */
 function el(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; }
@@ -433,11 +493,13 @@ function pageAuth(){
       <button data-authmode="login" class="${state.authMode==='login'?'active':''}">เข้าสู่ระบบ</button>
       <button data-authmode="register" class="${state.authMode==='register'?'active':''}">สมัครสมาชิก</button>
     </div>
-    <div class="field"><label>หมายเลขห้องพัก</label><input type="text" placeholder="เช่น B-304" value="B-304"></div>
-    <div class="field"><label>รหัสผ่าน</label><input type="password" placeholder="กรอกรหัสผ่าน" value="••••••••"></div>
-    <button class="btn-primary" data-do="login">${state.authMode==='login' ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}</button>
+    ${state.authError ? `<div style="color:#be123c;background:#fff1f2;border:1px solid #fecdd3;padding:8px 12px;border-radius:10px;font-size:13px;margin-bottom:10px;">⚠️ ${state.authError}</div>` : ''}
+    <div class="field"><label>หมายเลขห้องพัก (ใช้เป็น Username)</label><input id="authUsername" type="text" placeholder="เช่น B-304" value="${state.authUsername||''}"></div>
+    ${state.authMode==='register' ? `<div class="field"><label>อีเมล</label><input id="authEmail" type="email" placeholder="you@example.com" value="${state.authEmail||''}"></div>` : ''}
+    <div class="field"><label>รหัสผ่าน</label><input id="authPassword" type="password" placeholder="กรอกรหัสผ่าน"></div>
+    <button class="btn-primary" data-do="${state.authMode==='login' ? 'login' : 'register'}" ${state.authLoading ? 'disabled' : ''}>${state.authLoading ? 'กำลังโหลด...' : (state.authMode==='login' ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก')}</button>
     <div class="divider-row"><div class="line"></div>หรือ<div class="line"></div></div>
-    <button class="line-btn" data-do="login">💬 เข้าสู่ระบบด้วย Line</button>
+    <button class="line-btn" data-do="login-line">💬 เข้าสู่ระบบด้วย Line (ยังเป็นการจำลอง)</button>
   </div>`;
 }
 
@@ -764,13 +826,13 @@ function render(){
 }
 
 /* ===================== EVENTS (delegated) ===================== */
-document.body.addEventListener('click', (e)=>{
+document.body.addEventListener('click', async (e)=>{
   const t = e.target.closest('[data-nav], [data-back], [data-authmode], [data-do], [data-cat], [data-item], [data-close], [data-lftab], [data-dur], [data-claim], [data-upload], [data-deposit]');
   if(!t) return;
 
   if(t.dataset.nav){ goto(t.dataset.nav); return; }
   if(t.dataset.back !== undefined){ goto('home'); return; }
-  if(t.dataset.authmode){ state.authMode = t.dataset.authmode; render(); return; }
+  if(t.dataset.authmode){ state.authMode = t.dataset.authmode; state.authError = null; render(); return; }
   if(t.dataset.cat){ state.filterCat = t.dataset.cat; render(); return; }
   if(t.dataset.lftab){ state.lfTab = t.dataset.lftab; render(); return; }
   if(t.dataset.close !== undefined){ closeModal(); return; }
@@ -808,9 +870,57 @@ document.body.addEventListener('click', (e)=>{
   }
 
   switch(t.dataset.do){
-    case 'login':
-      goto('home');
-      showToast('เข้าสู่ระบบสำเร็จ ยินดีต้อนรับกลับมา!', '👋');
+    case 'login': {
+      const username = document.getElementById('authUsername').value.trim();
+      const password = document.getElementById('authPassword').value;
+      state.authUsername = username;
+      if(!username || !password){ state.authError = 'กรอกหมายเลขห้องพักและรหัสผ่านให้ครบ'; render(); break; }
+      state.authError = null; state.authLoading = true; render();
+      try{
+        const loginRes = await apiLogin(username, password);
+        authToken = loginRes.access_token;
+        localStorage.setItem('dsc_token', authToken);
+        const me = await apiMe(authToken);
+        user.name = me.username || username;
+        user.room = username;
+        state.authLoading = false;
+        goto('home');
+        showToast('เข้าสู่ระบบสำเร็จ ยินดีต้อนรับกลับมา!', '👋');
+      }catch(err){
+        state.authLoading = false;
+        state.authError = err.message;
+        render();
+      }
+      break;
+    }
+    case 'register': {
+      const username = document.getElementById('authUsername').value.trim();
+      const email = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+      state.authUsername = username;
+      state.authEmail = email;
+      if(!username || !email || !password){ state.authError = 'กรอกข้อมูลให้ครบทุกช่อง'; render(); break; }
+      state.authError = null; state.authLoading = true; render();
+      try{
+        await apiRegister(username, email, password);
+        const loginRes = await apiLogin(username, password);
+        authToken = loginRes.access_token;
+        localStorage.setItem('dsc_token', authToken);
+        const me = await apiMe(authToken);
+        user.name = me.username || username;
+        user.room = username;
+        state.authLoading = false;
+        goto('home');
+        showToast('สมัครสมาชิกสำเร็จ ยินดีต้อนรับ!', '🎉');
+      }catch(err){
+        state.authLoading = false;
+        state.authError = err.message;
+        render();
+      }
+      break;
+    }
+    case 'login-line':
+      showToast('เข้าสู่ระบบด้วย Line ยังเป็นการจำลอง (ยังไม่เชื่อมจริง)', '💬');
       break;
     case 'new-deposit': openModal(newDepositModal()); break;
     case 'confirm-deposit': openModal(depositSuccessModal()); break;
@@ -841,7 +951,11 @@ document.body.addEventListener('click', (e)=>{
       showToast('แจ้งคืนของสำเร็จ ขอบคุณที่ดูแลของส่วนกลาง!', '✅');
       break;
     case 'logout':
+      apiLogout(authToken);
+      authToken = null;
+      localStorage.removeItem('dsc_token');
       state.page = 'auth';
+      state.authMode = 'login';
       render();
       break;
   }
@@ -876,7 +990,20 @@ function bouncePoints(){
 const _origGoto = goto;
 goto = function(page){ _origGoto(page); if(page==='home') setTimeout(bouncePoints, 80); };
 
-render();
+/* ===================== INIT: restore session if we have a token ===================== */
+(async function initSession(){
+  if(authToken){
+    try{
+      const me = await apiMe(authToken);
+      user.name = me.username || user.name;
+      state.page = 'home';
+    }catch(e){
+      authToken = null;
+      localStorage.removeItem('dsc_token');
+    }
+  }
+  render();
+})();
 </script>
 </body>
 </html>
