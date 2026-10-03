@@ -1,41 +1,53 @@
 # 🏠 Dormitory Share & Care
 
-เว็บแอปต้นแบบ (Frontend Prototype) สำหรับระบบยืม-คืนของส่วนกลาง ฝากของ และของหายได้คืนในหอพัก ออกแบบแบบ Mobile-First ใช้งานง่าย กดเข้าฟีเจอร์ได้ในคลิกเดียว พร้อมระบบสะสมแต้มความดี (Karma Points) เพื่อสร้างสังคมหอพักที่น่าอยู่ — **โปรเจกต์นี้รวม Frontend + Backend (FastAPI + PostgreSQL) ไว้ใน repo เดียวกัน**
+ระบบเว็บแอปสำหรับหอพัก — **ยืม-คืนของส่วนกลาง, ฝากของ, ของหายได้คืน และแต้มความดี (Karma Points)** ออกแบบแบบ Mobile-First
+ทุกฟีเจอร์ทำงานจริงกับฐานข้อมูล PostgreSQL ผ่าน REST API (FastAPI) — ไม่มี mock data แล้ว และรวม Frontend + Backend ไว้ใน repo เดียว
 
-![progress](https://img.shields.io/badge/progress-%E2%89%8825%25-yellow)
+![status](https://img.shields.io/badge/core%20features-complete-brightgreen) ![progress](https://img.shields.io/badge/overall-%E2%89%8865%25-yellow)
 
 ---
 
 ## 📊 ความคืบหน้าของโปรเจกต์
 
-**ภาพรวม: ทำไปแล้วประมาณ 25% จาก 100%** (นับจาก checklist ด้านล่าง 5 จาก 19 ข้อ — เป็นตัวเลขคร่าวๆ ตามจำนวนงาน ไม่ได้ถ่วงน้ำหนักตามความยากของแต่ละงาน)
+**ฟีเจอร์หลักทั้งหมดทำงานจริงแล้ว** · ภาพรวมรวมงานเสริมใน Roadmap ≈ **65%** (10 จาก 16 งาน)
 
 | ส่วน | สถานะ |
 |---|---|
-| UI หน้าเว็บทุกหน้า (mock data) | ✅ เสร็จ |
-| Backend: Auth (register/login/logout) | ✅ เสร็จ |
-| Backend: User management | ✅ เสร็จ |
-| เชื่อม Auth หน้าเว็บ ↔ Backend จริง | ✅ เสร็จ |
-| Docker Compose (dev environment) | ✅ เสร็จ |
-| Backend: ยืม-คืนของ / ฝากของ / ของหาย / แต้มความดี | ❌ ยังไม่ทำ |
-| เชื่อม 4 ฟีเจอร์ข้างต้น กับ Backend จริง | ❌ ยังไม่ทำ |
-| Role/Admin, Migration, Dashboard นิติบุคคล ฯลฯ | ❌ ยังไม่ทำ |
-
-ส่วนที่เหลือใหญ่สุดคือฝั่ง backend ของ 4 ฟีเจอร์หลัก (ยืม-คืน, ฝากของ, ของหาย, แต้มความดี) ที่ตอนนี้หน้าเว็บยังใช้ mock data อยู่ทั้งหมด
+| UI ทุกหน้า (Mobile-First) | ✅ เสร็จ |
+| สมัครสมาชิก / เข้าสู่ระบบ / ออกจากระบบ (JWT) | ✅ เสร็จ |
+| ยืม-คืนของส่วนกลาง + ถ่ายรูปสภาพของตอนคืน | ✅ เสร็จ |
+| ฝากของ (รหัส QR, ยืนยันรับของ, ยกเลิก) | ✅ เสร็จ |
+| ของหายได้คืน (แจ้งเจอ / ตามหา / ขอรับของ + ผู้พบยืนยัน) | ✅ เสร็จ |
+| แต้มความดี + อันดับประจำเดือน | ✅ เสร็จ |
+| แจ้งเตือน (รวมเตือนใกล้ครบกำหนดคืน) + ประวัติกิจกรรม | ✅ เสร็จ |
+| อัปโหลดรูปภาพจริง (ย่อขนาดอัตโนมัติ) | ✅ เสร็จ |
+| ค้นหาของส่วนกลาง | ✅ เสร็จ |
+| Docker Compose (db + pgAdmin + api) | ✅ เสร็จ |
+| Dashboard นิติบุคคล (Admin role) | ❌ ยังไม่ทำ |
+| Database migration ด้วย Alembic | ❌ ยังไม่ทำ |
+| Real-time ด้วย WebSocket (ตอนนี้เช็กทุก 30 วินาที) | ❌ ยังไม่ทำ |
+| แจ้งเตือนผ่าน LINE / Push Notification | ❌ ยังไม่ทำ |
+| เก็บรูปบน Cloud Storage (ตอนนี้เก็บในฐานข้อมูล) | ❌ ยังไม่ทำ |
+| Deploy ขึ้นเซิร์ฟเวอร์จริง | ❌ ยังไม่ทำ |
 
 ---
 
-## ✨ ฟีเจอร์หลัก
+## ✨ ฟีเจอร์
 
-- 🔐 เข้าสู่ระบบ / สมัครสมาชิก — ล็อกอินด้วยหมายเลขห้องพัก หรือ Line
-- 🏠 หน้าหลัก — แสดงแต้มความดีสะสม + ทางลัดเข้าฟีเจอร์ต่างๆ
-- ☂️ ยืม-คืนของส่วนกลาง — ค้นหา/กรองของตามหมวดหมู่, สถานะแบบเรียลไทม์ (ว่าง / ถูกยืม / ซ่อมแซม), เลือกระยะเวลายืม, สร้าง QR Code รับของ, แจ้งคืนของพร้อมอัปโหลดรูปสภาพของ
-- 📦 ระบบฝากของ — สร้างรายการฝาก ระบุผู้รับและเวลานัดรับ พร้อม QR Code สำหรับมารับของ
-- 🔍 ของหายได้คืน — แจ้งเจอของหาย / ประกาศตามหาของ / กด "นี่คือของฉัน" เพื่อยืนยันตัวตน พร้อม Leaderboard "คนดีศรีหอพัก" ประจำเดือน
-- 🙂 โปรไฟล์ — ข้อมูลผู้ใช้ แต้มสะสม และประวัติการทำรายการทั้งหมด
-- 🔔 การแจ้งเตือน — แจ้งเตือนแต้มที่ได้รับ, ใกล้ถึงเวลาคืนของ, ของมาส่ง ฯลฯ
+- 🔐 **บัญชีผู้ใช้** — สมัครด้วยหมายเลขห้องพัก ตั้งชื่อที่แสดงได้ รีเฟรชหน้าแล้วยังล็อกอินค้างอยู่
+- ☂️ **ยืม-คืนของส่วนกลาง** — ดูสถานะของแต่ละชิ้นจากฐานข้อมูลจริง (ว่าง / ถูกยืม / ซ่อม), ค้นหา + กรองหมวดหมู่, เลือกระยะเวลา (1 ชม. / 1 วัน / 3 วัน), ระบบกันยืมซ้อน, แจ้งคืนพร้อมรูปสภาพของและหมายเหตุ, ไฮไลต์รายการที่เลยกำหนด
+- 📦 **ฝากของ** — ฝากของให้ห้องอื่นพร้อมรูปและรหัส QR, ผู้รับได้แจ้งเตือนทันที, กดยืนยันรับของได้ทั้งผู้รับและผู้ฝาก (กรณีผู้รับยังไม่มีบัญชี), ยกเลิกได้, แยกรายการ "ฝากถึงฉัน / ที่ฉันฝาก / ประวัติ"
+- 🔍 **ของหายได้คืน** — แจ้งเจอของ / ประกาศตามหาของ พร้อมรูป, กด "นี่คือของฉัน" แล้วบอกลักษณะเฉพาะ → **ผู้ที่เก็บได้เป็นคนตรวจสอบและยืนยัน** (ระบบจบในตัวเอง ไม่ต้องรอเจ้าหน้าที่), ระบบจับคู่ชื่อของอัตโนมัติแล้วแจ้งเตือนคนที่ตามหาอยู่, ปิดประกาศให้อัตโนมัติเมื่อได้ของคืน
+- 🪙 **แต้มความดี** — คำนวณจริงจากสมุดบัญชีแต้มในฐานข้อมูล + อันดับ "คนดีศรีหอพัก" ประจำเดือน
+- 🔔 **แจ้งเตือน + ประวัติ** — แจ้งเตือนจริงเมื่อมีของฝาก/คำขอรับของ/ได้แต้ม/ใกล้ครบกำหนดคืน และบันทึกทุกกิจกรรมไว้ในหน้าโปรไฟล์
 
-> 📌 ตอนนี้มีแค่ **เข้าสู่ระบบ/สมัครสมาชิก/ออกจากระบบ** ที่เชื่อมกับ Backend จริงแล้ว ฟีเจอร์อื่นยังเป็น mock data ที่ฝังในไฟล์ JavaScript
+### กติกาแต้มความดี
+
+| การกระทำ | แต้ม |
+|---|---|
+| คืนของส่วนกลางตรงเวลา (ยืมไว้อย่างน้อย 10 นาที กันการปั๊มแต้ม) | +10 |
+| ของที่ฝากถูกส่งถึงมือผู้รับ (ผู้ฝากได้แต้ม) | +5 |
+| เก็บของหายได้ และคืนถึงเจ้าของสำเร็จ | +20 |
 
 ## 🏗️ สถาปัตยกรรมระบบ (Architecture)
 
@@ -43,28 +55,43 @@
 
 ![Technology stack diagram](tech-stack.png)
 
-Frontend เป็น mobile-first SPA (HTML/CSS/JS ล้วน) คุยกับ FastAPI ผ่าน REST/JSON แล้วเก็บข้อมูลใน PostgreSQL ทั้งหมดรันในคอนเทนเนอร์เดียวผ่าน Docker Compose ตอนนี้ router ที่ทำงานจริงมีแค่ Auth กับ Users (สีเขียวในภาพ) ส่วนที่เหลือ (Borrowing, Deposits, Lost & found, Karma points) ยังเป็นแผนที่วางโครงไว้เฉยๆ (สีครีม)
+Frontend เป็น mobile-first SPA (HTML/CSS/JS ล้วน) คุยกับ FastAPI ผ่าน REST/JSON โดยใช้ JWT ยืนยันตัวตน แล้วเก็บข้อมูลใน PostgreSQL — ทั้งหมดรันผ่าน Docker Compose โดย backend แบ่งเป็นโมดูลตามฟีเจอร์ใน `routers/`
 
 ### แนวทางขยายระบบในอนาคต
 
 ![Microservices evolution diagram](microservices-evolution.png)
 
-ตอนนี้ backend เป็น modular monolith (1 container, แบ่งเป็นโมดูลผ่าน `routers/`) ถ้าในอนาคตระบบต้องรองรับผู้ใช้จำนวนมากขึ้นจริง สามารถแยกแต่ละโมดูลออกเป็น microservice ของตัวเอง พร้อม API Gateway และฐานข้อมูลแยกต่อ service ได้ — ไม่จำเป็นต้องทำตอนนี้ แต่ออกแบบโครงสร้างโค้ดให้รองรับการแยกในอนาคตไว้แล้ว
+ตอนนี้ backend เป็น modular monolith (1 container แบ่งโมดูลผ่าน `routers/`) ถ้าในอนาคตต้องรองรับหลายหอพักหรือผู้ใช้จำนวนมาก สามารถแยกแต่ละโมดูลเป็น microservice พร้อม API Gateway และฐานข้อมูลแยกต่อ service ได้
+
+### ฐานข้อมูล
+
+| ตาราง | เก็บอะไร |
+|---|---|
+| `users` | บัญชีผู้ใช้ (username = หมายเลขห้อง) |
+| `items` / `borrow_records` | ของส่วนกลาง และประวัติการยืม-คืน (รวมรูปตอนคืน) |
+| `deposits` | รายการฝากของ + รหัสรับของ |
+| `found_items` / `lost_reports` / `claims` | ของที่เก็บได้, ประกาศตามหา, คำขอรับของ |
+| `point_transactions` | สมุดบัญชีแต้ม (แต้มรวม = ผลรวมของตารางนี้) |
+| `notifications` / `activities` | แจ้งเตือน และประวัติกิจกรรม |
+
+## 🔌 API Endpoints
+
+ดูและทดลองเรียกได้ทุกตัวที่ **http://localhost:8000/docs** (Swagger UI)
+
+| กลุ่ม | Endpoints |
+|---|---|
+| Auth | `POST /register` `POST /login` `POST /logout` `POST /change-password` |
+| Users | `GET /me` `GET /users` `GET/PUT/DELETE /users/{id}` `GET /check-username/{name}` |
+| Borrowing | `GET/POST /items` `POST /items/{id}/borrow` `GET /borrow/me` `POST /borrow/{id}/return` |
+| Deposits | `GET /deposits/me` `POST /deposits` `POST /deposits/{id}/collect` `POST /deposits/{id}/cancel` |
+| Lost & Found | `GET/POST /found` `POST /found/{id}/claims` `GET /claims/incoming` `POST /claims/{id}/approve` `POST /claims/{id}/reject` `GET/POST /lost` `POST /lost/{id}/resolve` |
+| Points & Alerts | `GET /summary/me` `GET /points/me` `GET /leaderboard` `GET /notifications` `POST /notifications/read-all` `GET /activity/me` |
 
 ## 🛠️ Tech Stack
 
-**Frontend** — Static Prototype เขียนด้วย Vanilla HTML / CSS / JavaScript ล้วน (ไม่มี framework, ไม่ต้อง build)
-- HTML5 + CSS3 (Custom Properties, Flexbox, Grid)
-- Vanilla JavaScript (SPA-style navigation ด้วย client-side routing แบบง่าย)
-- ฟอนต์: [Baloo 2](https://fonts.google.com/specimen/Baloo+2) (หัวข้อ) และ [Sarabun](https://fonts.google.com/specimen/Sarabun) (เนื้อหา) จาก Google Fonts
+**Frontend** — Vanilla HTML / CSS / JavaScript ไฟล์เดียว (ไม่มี framework, ไม่ต้อง build) · ฟอนต์ Baloo 2 + Sarabun · QR Code ด้วย [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator)
 
-**Backend** — REST API
-- FastAPI (Python)
-- PostgreSQL 16 (ผ่าน SQLAlchemy ORM)
-- JWT Authentication (python-jose) + Password hashing (bcrypt)
-- Docker + Docker Compose
-
-> 📌 ข้อมูลส่วนใหญ่ (รายการของ, ของหาย, แต้ม, ประวัติ ฯลฯ) ยังเป็น **mock data** ที่ฝังไว้ในไฟล์ JavaScript เพื่อสาธิตการทำงานของ UI เท่านั้น มีแค่ระบบล็อกอิน/สมัครสมาชิกที่เชื่อมกับ Backend/Database จริงแล้ว
+**Backend** — FastAPI · SQLAlchemy ORM · PostgreSQL 16 · JWT (python-jose) + bcrypt · Docker Compose
 
 ## 📁 โครงสร้างไฟล์
 
@@ -74,19 +101,24 @@ Frontend เป็น mobile-first SPA (HTML/CSS/JS ล้วน) คุยก�
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   └── app/
-│       ├── main.py               # entrypoint, รวม router + CORS
+│       ├── main.py               # entrypoint: รวม router, CORS, สร้างตาราง, ข้อมูลเริ่มต้น
 │       ├── database.py
-│       ├── models.py
-│       ├── schemas.py
-│       ├── security.py
-│       ├── deps.py
+│       ├── models.py             # ตารางทั้งหมด
+│       ├── schemas.py            # รูปแบบข้อมูลรับ-ส่ง (Pydantic)
+│       ├── security.py           # JWT + hash รหัสผ่าน
+│       ├── deps.py               # get_current_user
+│       ├── services.py           # ให้แต้ม / แจ้งเตือน / บันทึกกิจกรรม (ใช้ร่วมกันทุกฟีเจอร์)
 │       └── routers/
 │           ├── auth.py
-│           └── users.py
-├── .env.example                  # ตัวอย่างค่า config (copy เป็น .env ก่อนใช้งาน)
+│           ├── users.py
+│           ├── items.py          # ยืม-คืน
+│           ├── deposits.py       # ฝากของ
+│           ├── lostfound.py      # ของหายได้คืน + คำขอรับของ
+│           └── community.py      # แต้ม, อันดับ, แจ้งเตือน, ประวัติ
+├── .env.example
 ├── .gitignore
-├── docker-compose.yml            # รัน db + pgadmin + api พร้อมกัน
-├── dormitory-share-care.html     # Frontend ทั้งหมด (HTML + CSS + JS ในไฟล์เดียว)
+├── docker-compose.yml
+├── dormitory-share-care.html     # Frontend ทั้งหมด
 ├── tech-stack.png
 ├── microservices-evolution.png
 └── README.md
@@ -107,16 +139,17 @@ cd Dormitory-Share-Care
 cp .env.example .env
 ```
 
-เปิดไฟล์ `.env` แก้ `SECRET_KEY` เป็นค่าสุ่ม (รัน `openssl rand -hex 32` แล้วเอาผลลัพธ์ไปแปะแทน) จากนั้น:
+เปิด `.env` แก้ `SECRET_KEY` เป็นค่าสุ่ม (รัน `openssl rand -hex 32` แล้วนำผลลัพธ์ไปใส่) จากนั้น:
 
 ```bash
 docker compose up -d --build
 ```
 
-ตรวจสอบว่าทำงานสำเร็จ:
-- Swagger UI (ทดสอบ API ได้เลย): **http://localhost:8000/docs**
+- Swagger UI: **http://localhost:8000/docs**
 - Health check: **http://localhost:8000/health**
-- pgAdmin (ดูฐานข้อมูล): **http://localhost:5050** → login `admin@example.com` / `admin123` (ตามใน `.env`)
+- pgAdmin: **http://localhost:5050** → login ตามค่าใน `.env` → Add Server → Host `db`, Port `5432`
+
+ครั้งแรกที่รัน ระบบจะสร้างตารางและของส่วนกลางเริ่มต้น 6 ชิ้นให้อัตโนมัติ
 
 ### 3. เปิด Frontend
 
@@ -124,32 +157,50 @@ docker compose up -d --build
 python3 -m http.server 5500
 ```
 
-แล้วเข้า **http://localhost:5500/dormitory-share-care.html** (ห้ามดับเบิลคลิกเปิดไฟล์ตรงๆ เพราะ browser จะ block การเชื่อมต่อกับ backend — ต้องเปิดผ่าน server เท่านั้น)
+แล้วเข้า **http://localhost:5500/dormitory-share-care.html** (ต้องเปิดผ่าน server — ห้ามดับเบิลคลิกไฟล์ตรงๆ เพราะเบราว์เซอร์จะบล็อกการเชื่อมต่อ backend)
 
-ลองสมัครสมาชิก/เข้าสู่ระบบได้จริงทันที ส่วนฟีเจอร์อื่น (ยืม-คืน, ฝากของ, ของหาย, แต้ม) ยังเป็น mock data
+### 4. ลองใช้งานแบบ 2 ห้อง (แนะนำสำหรับเดโม)
 
-### 4. ปิดระบบเมื่อเลิกใช้
+ฟีเจอร์ฝากของและของหายเป็นการโต้ตอบระหว่าง 2 คน ให้เปิดเบราว์เซอร์ปกติ 1 หน้าต่าง + หน้าต่างไม่ระบุตัวตน (Incognito) อีก 1 หน้าต่าง แล้วสมัครคนละห้อง เช่น `B-304` กับ `B-201`
+
+1. **B-304** ยืมร่ม → แจ้งคืนพร้อมถ่ายรูป
+2. **B-304** ฝากกุญแจให้ `B-201` → **B-201** เห็นแจ้งเตือนและกด "ยืนยันว่ารับของแล้ว" → B-304 ได้ +5
+3. **B-201** ประกาศตามหา "หูฟัง" → **B-304** แจ้งเจอ "หูฟังสีขาว" → B-201 ได้แจ้งเตือนว่าอาจเป็นของตัวเอง
+4. **B-201** กด "นี่คือของฉัน" → **B-304** ตรวจรายละเอียดแล้วกดยืนยัน → B-304 ได้ +20 และขึ้นอันดับ
+5. เปิด pgAdmin ดูข้อมูลในตารางเปลี่ยนตามการใช้งานจริง
+
+### 5. ปิดระบบ
 
 ```bash
 docker compose down       # หยุด container เก็บข้อมูลไว้
-docker compose down -v    # หยุด + ล้างข้อมูลในฐานข้อมูลทั้งหมด
+docker compose down -v    # หยุด + ล้างข้อมูลทั้งหมด
 ```
 
-## 🗺️ แผนพัฒนาต่อ (Roadmap)
+## ⚠️ ข้อจำกัดที่ทราบ
 
-- [x] เชื่อมต่อ Login / Register / Logout กับ Backend จริง
-- [ ] เชื่อมต่อ ยืม-คืนของ กับ Backend จริง
-- [ ] เชื่อมต่อ ฝากของ กับ Backend จริง
-- [ ] เชื่อมต่อ ของหาย กับ Backend จริง
-- [ ] เชื่อมต่อ ระบบแต้มความดี กับ Backend จริง
-- [ ] Real-time status ด้วย WebSocket
-- [ ] แจ้งเตือนผ่าน Line Notify / Push Notification
-- [ ] ระบบอัปโหลดรูปภาพขึ้น Cloud Storage จริง
+- รูปภาพเก็บในฐานข้อมูลแบบ base64 (ย่อเหลือด้านยาวสุด 900px ก่อนส่ง) — พอสำหรับต้นแบบ แต่ระบบจริงควรย้ายไป Cloud Storage
+- การแจ้งเตือนอัปเดตทุก 30 วินาที ไม่ใช่ real-time
+- token ที่ logout แล้วเก็บไว้ในหน่วยความจำ — รีสตาร์ต backend แล้ว token เก่าที่ยังไม่หมดอายุจะใช้ได้อีกครั้ง (ระบบจริงควรใช้ Redis)
+- QR Code โหลดไลบรารีจาก CDN — ถ้าออฟไลน์จะแสดงเป็นรหัสตัวอักษรแทน
+
+## 🗺️ Roadmap
+
+- [x] สมัคร / เข้าสู่ระบบ / ออกจากระบบ กับ Backend จริง
+- [x] ยืม-คืนของ กับ Backend จริง
+- [x] ฝากของ กับ Backend จริง
+- [x] ของหายได้คืน กับ Backend จริง
+- [x] ระบบแต้มความดี + อันดับ
+- [x] แจ้งเตือน + ประวัติกิจกรรม
+- [x] อัปโหลดรูปภาพจริง
 - [ ] Dashboard สำหรับนิติบุคคล (Admin)
-- [ ] ใช้ Alembic สำหรับ database migration (ตอนนี้ auto-create ตารางตอน start)
+- [ ] Alembic สำหรับ database migration
+- [ ] Real-time ด้วย WebSocket
+- [ ] แจ้งเตือนผ่าน LINE / Push Notification
+- [ ] เก็บรูปบน Cloud Storage
+- [ ] Deploy ขึ้นเซิร์ฟเวอร์จริง
 
 ## 📄 License
 
-โปรเจกต์นี้จัดทำเพื่อการศึกษา/ต้นแบบ (Prototype) สามารถนำไปต่อยอดพัฒนาได้ตามความเหมาะสม
+โปรเจกต์นี้จัดทำเพื่อการศึกษา สามารถนำไปต่อยอดพัฒนาได้ตามความเหมาะสม
 67160348 บุณยนุช มโนมัยสกุล (AAI)
 67160352 ปัณณกร พลเสน (AAI)

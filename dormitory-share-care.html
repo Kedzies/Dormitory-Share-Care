@@ -291,6 +291,18 @@
 
   a{color:inherit;}
   ::selection{background:var(--pink-deep); color:#fff;}
+
+  /* ---------- Real-data additions ---------- */
+  .row-icon{overflow:hidden;}
+  .row-icon img{width:100%; height:100%; object-fit:cover;}
+  .qr-svg{background:#fff; padding:8px; border-radius:16px; line-height:0; box-shadow:var(--shadow);}
+  .qr-svg svg{width:170px; height:170px;}
+  .btn-row{display:flex; gap:8px; margin-top:10px;}
+  .btn-row > button{flex:1; padding:11px; font-size:13.5px;}
+  button:disabled{opacity:.6; cursor:not-allowed;}
+  .modal-text{font-size:13px; color:var(--ink-soft); line-height:1.6; margin-bottom:14px;}
+  #toast{pointer-events:none;}  /* toast ไม่บังปุ่มที่อยู่ข้างใต้ */
+  .error-box{color:#be123c; background:#fff1f2; border:1px solid #fecdd3; padding:8px 12px; border-radius:10px; font-size:13px; margin-bottom:10px;}
 </style>
 </head>
 <body>
@@ -312,58 +324,27 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script>
 /* ===================== MOCK DATA ===================== */
-const user = {
-  name: "น้องมะลิ",
-  room: "B-304",
-  points: 150,
-  history: [
-    {type:"return", text:"คืนร่ม 1 คัน", time:"เมื่อวาน 18:20", icon:"☂️"},
-    {type:"found", text:"เจอกุญแจห้องน้ำรวม + ได้รับคืนเรียบร้อย (+20 แต้ม)", time:"3 วันก่อน", icon:"🔑"},
-    {type:"borrow", text:"ยืมเครื่องดูดฝุ่น 1 วัน", time:"5 วันก่อน", icon:"🧹"},
-    {type:"deposit", text:"ฝากพัสดุให้ห้อง B-201", time:"สัปดาห์ก่อน", icon:"📦"},
-  ]
-};
+/* ===================== APP DATA (โหลดจริงจาก backend ทั้งหมด ไม่มี mock data) ===================== */
+const user = { name: "", room: "", points: 0 };
 
 const categories = ["ทั้งหมด","อุปกรณ์ทำความสะอาด","ซ่อมแซม","ความบันเทิง","อื่นๆ"];
-const items = [
-  {id:1, name:"ร่มกันฝน", cat:"อื่นๆ", emoji:"☂️", status:"available", durations:["1 ชม.","1 วัน","3 วัน"]},
-  {id:2, name:"เตารีดไฟฟ้า", cat:"อุปกรณ์ทำความสะอาด", emoji:"🧺", status:"borrowed", durations:["1 ชม.","1 วัน"]},
-  {id:3, name:"เครื่องดูดฝุ่น", cat:"อุปกรณ์ทำความสะอาด", emoji:"🧹", status:"available", durations:["1 วัน","3 วัน"]},
-  {id:4, name:"ชุดไขควง", cat:"ซ่อมแซม", emoji:"🔧", status:"available", durations:["1 ชม.","1 วัน"]},
-  {id:5, name:"บอร์ดเกม Uno", cat:"ความบันเทิง", emoji:"🎲", status:"repair", durations:["1 วัน","3 วัน"]},
-  {id:6, name:"ค้อน + ตะปู", cat:"ซ่อมแซม", emoji:"🔨", status:"available", durations:["1 ชม.","1 วัน"]},
-];
+// ระยะเวลายืมที่ระบบรองรับ (ต้องตรงกับ ALLOWED_DURATIONS ฝั่ง backend)
+const DURATIONS = ["1 ชม.","1 วัน","3 วัน"];
+// กติกาแต้ม (ต้องตรงกับ services.py ฝั่ง backend) — ใช้แสดงผลเท่านั้น การให้แต้มจริงทำที่ backend
+const POINT_RULES = { returnOnTime: 10, depositHandedOff: 5, foundReturned: 20 };
 
-const deposits = [
-  {id:1, what:"กุญแจห้อง", forRoom:"B-201", note:"ฝากไว้ให้เพื่อน", eta:"วันนี้ 20:00", status:"รอรับ"},
-  {id:2, what:"พัสดุ Shopee", forRoom:"B-304", note:"กล่องขนาดกลาง", eta:"พรุ่งนี้เช้า", status:"รอรับ"},
-];
+let items = [], myBorrows = [];
+let depositsData = [];
+let foundData = [], lostData = [], incomingClaims = [], leaderboardData = [];
+let notificationsData = [], activityData = [], recentActivity = [];
+let unreadCount = 0;
+let loading = {};   // loading[page] = true ระหว่างโหลดข้อมูลของหน้านั้น
+let uploads = {};   // รูปที่ผู้ใช้เลือก (ย่อขนาดแล้ว) เก็บตาม key ของช่องอัปโหลด
 
-const foundItems = [
-  {id:1, what:"กระเป๋าสตางค์สีน้ำตาล", place:"หน้าลิฟต์ชั้น 3", time:"วันนี้ 09:10", emoji:"👛", status:"รอเจ้าของ"},
-  {id:2, what:"หูฟังไร้สายสีขาว", place:"ห้องซักผ้า", time:"เมื่อวาน 21:40", emoji:"🎧", status:"รอเจ้าของ"},
-];
-const lostItems = [
-  {id:1, what:"ร่มพับสีดำ", place:"โรงอาหารชั้น 1", time:"2 วันก่อน", emoji:"☂️"},
-];
-
-const leaderboard = [
-  {name:"เจ้าของห้อง A-102", points:320},
-  {name:"เจ้าของห้อง B-215", points:275},
-  {name:"น้องมะลิ (คุณ)", points:150},
-  {name:"เจ้าของห้อง C-108", points:120},
-];
-
-const notifications = [
-  {icon:"🎉", title:"คุณได้รับ 20 แต้ม!", sub:"จากการคืนกุญแจห้องน้ำรวมให้เจ้าของ", time:"3 วันก่อน", unread:true},
-  {icon:"⏰", title:"ใกล้ถึงเวลาคืนแล้ว", sub:"เครื่องดูดฝุ่น — กำหนดคืนใน 2 ชม.", time:"5 วันก่อน", unread:true},
-  {icon:"📦", title:"มีของมาส่งถึงคุณ", sub:"พัสดุจากห้องนิติบุคคล พร้อมให้สแกนรับ", time:"สัปดาห์ก่อน", unread:false},
-  {icon:"🔍", title:"มีคนพบของที่ตรงกับที่คุณตามหา", sub:"ร่มพับสีดำ — กดดูรายละเอียด", time:"สัปดาห์ก่อน", unread:false},
-];
-
-/* ===================== API CONFIG ===================== */
+/* ===================== API ===================== */
 // เปลี่ยนค่านี้ถ้า backend รันอยู่คนละ host/port หรือ deploy ขึ้นเซิร์ฟเวอร์จริงแล้ว
 const API_BASE_URL = "http://localhost:8000";
 let authToken = localStorage.getItem('dsc_token') || null;
@@ -381,46 +362,36 @@ function parseApiError(data, fallback){
   return fallback;
 }
 
-async function apiRegister(username, email, password){
-  const res = await fetch(`${API_BASE_URL}/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, email, password })
-  });
-  const data = await res.json().catch(()=>({}));
-  if(!res.ok) throw new Error(parseApiError(data, 'สมัครสมาชิกไม่สำเร็จ (username อาจถูกใช้แล้ว)'));
+/** เรียก backend จุดเดียว: แนบ token, แปลง error เป็นข้อความอ่านง่าย, จัดการ session หมดอายุ */
+async function api(path, { method = 'GET', body, form, auth = true } = {}){
+  const headers = {};
+  if(auth && authToken) headers['Authorization'] = `Bearer ${authToken}`;
+  let payload;
+  if(form){ headers['Content-Type'] = 'application/x-www-form-urlencoded'; payload = new URLSearchParams(form); }
+  else if(body !== undefined){ headers['Content-Type'] = 'application/json'; payload = JSON.stringify(body); }
+
+  let res;
+  try{
+    res = await fetch(API_BASE_URL + path, { method, headers, body: payload });
+  }catch(e){
+    throw new Error('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจสอบว่ารัน backend (docker compose up) แล้ว');
+  }
+  const data = await res.json().catch(()=>null);
+  if(res.status === 401 && auth && authToken){
+    handleSessionExpired();
+    throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+  }
+  if(!res.ok) throw new Error(parseApiError(data, 'เกิดข้อผิดพลาด ลองใหม่อีกครั้ง'));
   return data;
 }
 
-async function apiLogin(username, password){
-  const body = new URLSearchParams();
-  body.append('username', username);
-  body.append('password', password);
-  const res = await fetch(`${API_BASE_URL}/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body
-  });
-  const data = await res.json().catch(()=>({}));
-  if(!res.ok) throw new Error(parseApiError(data, 'เข้าสู่ระบบไม่สำเร็จ ตรวจสอบหมายเลขห้อง/รหัสผ่าน'));
-  return data; // { access_token, token_type }
-}
-
-async function apiMe(token){
-  const res = await fetch(`${API_BASE_URL}/me`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  if(!res.ok) throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
-  return res.json();
-}
-
-async function apiLogout(token){
-  try{
-    await fetch(`${API_BASE_URL}/logout`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-  }catch(e){ /* เน็ตหลุดตอน logout ไม่เป็นไร เคลียร์ token ฝั่ง client ต่อได้เลย */ }
+function handleSessionExpired(){
+  authToken = null;
+  localStorage.removeItem('dsc_token');
+  state.page = 'auth';
+  state.authError = 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่';
+  closeModal();
+  render();
 }
 
 /* ===================== STATE ===================== */
@@ -428,39 +399,190 @@ let state = { page:"auth", filterCat:"ทั้งหมด", lfTab:"found", aut
 
 /* ===================== HELPERS ===================== */
 function el(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; }
+
+/** กัน XSS: ข้อความทุกอย่างที่ผู้ใช้พิมพ์ต้องผ่านฟังก์ชันนี้ก่อนแสดงผล */
+function esc(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 function showToast(msg, icon="✅"){
   const t = document.getElementById('toast');
-  t.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+  t.innerHTML = `<span>${icon}</span><span>${esc(msg)}</span>`;
   t.classList.add('show');
   clearTimeout(window._toastT);
-  window._toastT = setTimeout(()=>t.classList.remove('show'), 2200);
+  window._toastT = setTimeout(()=>t.classList.remove('show'), 2600);
 }
 function openModal(html){
+  uploads = {};
   document.getElementById('modalSheet').innerHTML = `<div class="modal-handle"></div>` + html;
   document.getElementById('modalOverlay').classList.add('open');
 }
 function closeModal(){ document.getElementById('modalOverlay').classList.remove('open'); }
-function qrBlock(codeText){
-  let cells = "";
-  // deterministic pseudo-random pattern from string
-  let seed = 0; for(const c of codeText) seed += c.charCodeAt(0);
-  for(let i=0;i<49;i++){
-    seed = (seed*9301+49297) % 233280;
-    const on = (seed/233280) > 0.42;
-    cells += `<div class="${on?'on':'off'}"></div>`;
+
+/** backend เก็บเวลาเป็น UTC แต่ไม่ใส่ timezone มาด้วย — เติม Z ให้ browser แปลงเป็นเวลาไทยถูกต้อง */
+function parseDate(s){
+  if(!s) return null;
+  return new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(s) ? s : s + 'Z');
+}
+function fmtDateTime(s){
+  const d = parseDate(s);
+  return d ? d.toLocaleString('th-TH', {dateStyle:'medium', timeStyle:'short'}) : '';
+}
+function timeAgo(s){
+  const d = parseDate(s); if(!d) return '';
+  const sec = Math.floor((Date.now() - d.getTime()) / 1000);
+  if(sec < 60) return 'เมื่อสักครู่';
+  if(sec < 3600) return `${Math.floor(sec/60)} นาทีที่แล้ว`;
+  if(sec < 86400) return `${Math.floor(sec/3600)} ชม.ที่แล้ว`;
+  if(sec < 7*86400) return `${Math.floor(sec/86400)} วันที่แล้ว`;
+  return fmtDateTime(s);
+}
+
+/** เดาอีโมจิจากชื่อของ เพื่อให้รายการดูง่ายขึ้นเวลาไม่มีรูป */
+function guessEmoji(name, fallback){
+  const n = (name || '').toLowerCase();
+  const map = [
+    ['กุญแจ','🔑'],['key','🔑'],['กระเป๋าสตางค์','👛'],['wallet','👛'],['กระเป๋า','👜'],['หูฟัง','🎧'],
+    ['ร่ม','☂️'],['โทรศัพท์','📱'],['มือถือ','📱'],['phone','📱'],['บัตร','💳'],['แว่น','👓'],['นาฬิกา','⌚'],
+    ['พัสดุ','📦'],['กล่อง','📦'],['ขวด','🧴'],['แก้ว','🥤'],['หนังสือ','📚'],['เสื้อ','👕'],['รองเท้า','👟'],
+    ['ชาร์จ','🔌'],['ปากกา','🖊️'],['หมวก','🧢'],['เงิน','💵'],['โน้ตบุ๊ก','💻'],['แล็ปท็อป','💻'],['laptop','💻'],
+    ['อาหาร','🍱'],['ขนม','🍪'],['ตุ๊กตา','🧸'],['จักรยาน','🚲'],
+  ];
+  for(const [k, e] of map){ if(n.includes(k)) return e; }
+  return fallback;
+}
+
+/** ย่อรูปก่อนส่งขึ้น server (ด้านยาวสุด 900px, JPEG) เพื่อให้ส่งเร็วและไม่เปลืองฐานข้อมูล */
+function compressImage(file, maxSize = 900, quality = 0.75){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onerror = ()=>reject(new Error('อ่านไฟล์รูปไม่สำเร็จ'));
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onerror = ()=>reject(new Error('ไฟล์นี้ไม่ใช่รูปภาพ'));
+      img.onload = ()=>{
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/** QR Code จริง (อ่านด้วยกล้องมือถือได้) — ถ้าโหลดไลบรารีไม่ได้ (ออฟไลน์) จะแสดงรหัสเป็นตัวอักษรแทน */
+function qrBlock(codeText, caption = "แสดงรหัสนี้ตอนส่ง-รับของ"){
+  let qrHtml = '';
+  if(typeof qrcode !== 'undefined'){
+    const qr = qrcode(0, 'M');
+    qr.addData(codeText);
+    qr.make();
+    qrHtml = `<div class="qr-svg">${qr.createSvgTag({ cellSize: 5, margin: 2 })}</div>`;
   }
   return `<div class="qr-wrap">
-    <div class="qr-code">${cells}</div>
-    <div class="qr-caption">นำ QR นี้ไปสแกนที่จุดบริการ</div>
-    <div class="qr-code-text">${codeText}</div>
+    ${qrHtml}
+    <div class="qr-caption">${esc(caption)}</div>
+    <div class="qr-code-text">${esc(codeText)}</div>
   </div>`;
 }
+
+function thumb(image, emoji, bg = 'var(--pink)'){
+  return `<div class="row-icon" style="background:${bg};">${image ? `<img src="${esc(image)}" alt="">` : esc(emoji)}</div>`;
+}
+function uploadBox(key, label){
+  return `<div class="field">
+    <label>${label}</label>
+    <div class="upload-box" data-upload="${key}">
+      <div class="up-icon">📷</div>
+      <div class="up-text">แตะเพื่อถ่ายรูป หรืออัปโหลดรูปภาพ</div>
+      <input type="file" accept="image/*" style="display:none" id="fileInput_${key}">
+    </div>
+  </div>`;
+}
+function pill(text, bg, color){
+  return `<span class="pill" style="background:${bg}; color:${color};">${text}</span>`;
+}
+function val(id){ const e = document.getElementById(id); return e ? e.value.trim() : ''; }
+
+/** ปิดปุ่มระหว่างรอ server ตอบ — กันกดซ้ำ และคืนสภาพปุ่มถ้าเกิด error */
+async function withBusy(btn, busyText, fn){
+  const original = btn ? btn.innerHTML : '';
+  if(btn){ btn.disabled = true; btn.innerHTML = busyText; }
+  try{
+    return await fn();
+  }catch(err){
+    showToast(err.message, '⚠️');
+    if(btn && document.body.contains(btn)){ btn.disabled = false; btn.innerHTML = original; }
+  }
+}
+
 function statusMeta(status){
   if(status==="available") return {label:"ว่าง", cls:"status-available", dot:"🟢"};
   if(status==="borrowed") return {label:"ถูกยืม", cls:"status-borrowed", dot:"🔴"};
   return {label:"กำลังซ่อมแซม", cls:"status-repair", dot:"🟡"};
 }
-function goto(page){ state.page = page; render(); window.scrollTo(0,0); }
+
+/* ===================== DATA LOADING ===================== */
+function applySummary(s){
+  user.room = s.username;
+  user.points = s.points;
+  unreadCount = s.unread_notifications;
+  recentActivity = s.recent_activity;
+}
+function updateBell(){
+  const dot = document.querySelector('.bell-dot');
+  if(dot) dot.style.display = unreadCount > 0 ? '' : 'none';
+}
+
+const pageLoaders = {
+  home: async ()=>{ applySummary(await api('/summary/me')); },
+  borrow: async ()=>{
+    const [rawItems, rawBorrows] = await Promise.all([api('/items'), api('/borrow/me')]);
+    items = rawItems.map(i => ({ id:i.id, name:i.name, cat:i.category, emoji:i.emoji, status:i.status }));
+    myBorrows = rawBorrows;
+  },
+  deposit: async ()=>{ depositsData = await api('/deposits/me'); },
+  lostfound: async ()=>{
+    [foundData, lostData, incomingClaims, leaderboardData] = await Promise.all([
+      api('/found'), api('/lost'), api('/claims/incoming'), api('/leaderboard'),
+    ]);
+  },
+  profile: async ()=>{
+    const [s, a] = await Promise.all([api('/summary/me'), api('/activity/me')]);
+    applySummary(s); activityData = a;
+  },
+  notifications: async ()=>{
+    notificationsData = await api('/notifications');
+    if(notificationsData.some(n => !n.is_read)) await api('/notifications/read-all', { method:'POST' });
+    unreadCount = 0;
+  },
+};
+
+async function loadPage(page){
+  const loader = pageLoaders[page];
+  if(!loader || !authToken) return;
+  loading[page] = true;
+  if(state.page === page) render();
+  try{ await loader(); }
+  catch(err){ showToast(err.message, '⚠️'); }
+  loading[page] = false;
+  if(state.page === page && authToken) render();
+}
+
+function goto(page){ state.page = page; render(); window.scrollTo(0,0); loadPage(page); }
+
+function loadingState(){ return emptyState("⏳","กำลังโหลดข้อมูล...","กรุณารอสักครู่"); }
+function emptyState(emoji, title, sub){
+  return `<div class="empty-state">
+    <div class="empty-emoji">${emoji}</div>
+    <div class="empty-title">${title}</div>
+    <div class="empty-sub">${sub}</div>
+  </div>`;
+}
 
 /* ===================== RENDER: SHELL PARTS ===================== */
 function topbar(title){
@@ -474,32 +596,44 @@ function topbar(title){
     <div class="greet-wrap">
       <div class="avatar">🙂</div>
       <div>
-        <div class="greet-name">สวัสดี, ${user.name}</div>
-        <div class="greet-room">ห้อง ${user.room}</div>
+        <div class="greet-name">สวัสดี, ${esc(user.name || 'ชาวหอ')}</div>
+        <div class="greet-room">ห้อง ${esc(user.room)}</div>
       </div>
     </div>
-    <button class="bell-btn" data-nav="notifications">🔔<span class="bell-dot"></span></button>
+    <button class="bell-btn" data-nav="notifications">🔔<span class="bell-dot" style="${unreadCount>0?'':'display:none'}"></span></button>
+  </div>`;
+}
+
+function activityRow(a){
+  return `<div class="list-row">
+    <div class="row-icon">${esc(a.icon)}</div>
+    <div>
+      <div class="row-title">${esc(a.text)}</div>
+      <div class="row-meta">${timeAgo(a.created_at)}</div>
+    </div>
   </div>`;
 }
 
 /* ===================== PAGES ===================== */
 function pageAuth(){
+  const reg = state.authMode === 'register';
   return `
   <div class="auth-wrap">
     <div class="auth-logo">🏠💗</div>
     <h1 class="auth-title">Dormitory Share & Care</h1>
     <div class="auth-sub">ยืม-คืน ฝากของ และตามหาของหาย ง่ายๆ ในที่เดียว</div>
     <div class="auth-toggle">
-      <button data-authmode="login" class="${state.authMode==='login'?'active':''}">เข้าสู่ระบบ</button>
-      <button data-authmode="register" class="${state.authMode==='register'?'active':''}">สมัครสมาชิก</button>
+      <button data-authmode="login" class="${!reg?'active':''}">เข้าสู่ระบบ</button>
+      <button data-authmode="register" class="${reg?'active':''}">สมัครสมาชิก</button>
     </div>
-    ${state.authError ? `<div style="color:#be123c;background:#fff1f2;border:1px solid #fecdd3;padding:8px 12px;border-radius:10px;font-size:13px;margin-bottom:10px;">⚠️ ${state.authError}</div>` : ''}
-    <div class="field"><label>หมายเลขห้องพัก (ใช้เป็น Username)</label><input id="authUsername" type="text" placeholder="เช่น B-304" value="${state.authUsername||''}"></div>
-    ${state.authMode==='register' ? `<div class="field"><label>อีเมล</label><input id="authEmail" type="email" placeholder="you@example.com" value="${state.authEmail||''}"></div>` : ''}
-    <div class="field"><label>รหัสผ่าน</label><input id="authPassword" type="password" placeholder="กรอกรหัสผ่าน"></div>
-    <button class="btn-primary" data-do="${state.authMode==='login' ? 'login' : 'register'}" ${state.authLoading ? 'disabled' : ''}>${state.authLoading ? 'กำลังโหลด...' : (state.authMode==='login' ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก')}</button>
-    <div class="divider-row"><div class="line"></div>หรือ<div class="line"></div></div>
-    <button class="line-btn" data-do="login-line">💬 เข้าสู่ระบบด้วย Line (ยังเป็นการจำลอง)</button>
+    ${state.authError ? `<div class="error-box">⚠️ ${esc(state.authError)}</div>` : ''}
+    <div class="field"><label>หมายเลขห้องพัก (ใช้เป็น Username)</label><input id="authUsername" type="text" placeholder="เช่น B-304" value="${esc(state.authUsername||'')}"></div>
+    ${reg ? `
+      <div class="field"><label>ชื่อที่ให้เพื่อนในหอเห็น (ไม่บังคับ)</label><input id="authFullName" type="text" placeholder="เช่น น้องมะลิ" value="${esc(state.authFullName||'')}"></div>
+      <div class="field"><label>อีเมล (ไม่บังคับ)</label><input id="authEmail" type="email" placeholder="you@example.com" value="${esc(state.authEmail||'')}"></div>
+    ` : ''}
+    <div class="field"><label>รหัสผ่าน${reg ? ' (อย่างน้อย 6 ตัวอักษร)' : ''}</label><input id="authPassword" type="password" placeholder="กรอกรหัสผ่าน"></div>
+    <button class="btn-primary" data-do="${reg ? 'register' : 'login'}" ${state.authLoading ? 'disabled' : ''}>${state.authLoading ? 'กำลังโหลด...' : (reg ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ')}</button>
   </div>`;
 }
 
@@ -508,7 +642,7 @@ function pageHome(){
     <div class="points-card" id="pointsCard">
       <div class="label">🪙 แต้มความดีของคุณ</div>
       <div class="value"><span class="coin">🪙</span>${user.points} แต้ม</div>
-      <div class="sub">สะสมแต้มจากการทำความดีในหอพัก</div>
+      <div class="sub">คืนของตรงเวลา +${POINT_RULES.returnOnTime} · ส่งของฝากถึงมือ +${POINT_RULES.depositHandedOff} · คืนของหายให้เจ้าของ +${POINT_RULES.foundReturned}</div>
     </div>
 
     <div class="quick-grid">
@@ -535,21 +669,34 @@ function pageHome(){
     </div>
 
     <div class="section-title">กิจกรรมล่าสุด</div>
-    ${user.history.slice(0,2).map(h=>`
-      <div class="list-row">
-        <div class="row-icon">${h.icon}</div>
-        <div>
-          <div class="row-title">${h.text}</div>
-          <div class="row-meta">${h.time}</div>
-        </div>
-      </div>
-    `).join("")}
+    ${recentActivity.length===0
+      ? emptyState("🌱","ยังไม่มีกิจกรรม","เริ่มยืมของ ฝากของ หรือช่วยเพื่อนตามหาของหายได้เลย")
+      : recentActivity.map(activityRow).join("")}
   `;
 }
 
+/* ---------- ยืม-คืน ---------- */
 function pageBorrow(){
+  if(loading.borrow && items.length===0) return topbar("ยืม-คืนของส่วนกลาง") + loadingState();
   const filtered = items.filter(i => state.filterCat==="ทั้งหมด" || i.cat===state.filterCat);
+  const activeBorrows = myBorrows.filter(b => b.status === "active");
   return topbar("ยืม-คืนของส่วนกลาง") + `
+    ${activeBorrows.length>0 ? `
+      <div class="section-title">ของที่ฉันยืมอยู่ตอนนี้</div>
+      ${activeBorrows.map(b=>{
+        const overdue = parseDate(b.due_at) < new Date();
+        return `<div class="list-row" ${overdue?'style="border:1.5px solid #F59E9E;"':''}>
+          <div class="row-icon">${esc(b.item.emoji)}</div>
+          <div style="flex:1;">
+            <div class="row-title">${esc(b.item.name)}</div>
+            <div class="row-sub">ยืม ${esc(b.duration_label)} · กำหนดคืน ${fmtDateTime(b.due_at)}</div>
+            ${overdue ? pill('⚠️ เลยกำหนดคืนแล้ว','#FDECEC','#C0392B') : ''}
+            <button class="btn-secondary" style="margin-top:10px;" data-return="${b.id}">📦 แจ้งคืนของ</button>
+          </div>
+        </div>`;
+      }).join("")}
+    ` : ""}
+    <div class="section-title">ของส่วนกลางทั้งหมด</div>
     <div class="search-row">
       <div class="search-box">🔎 <input type="text" placeholder="ค้นหาสิ่งของ..." id="searchInput"></div>
     </div>
@@ -559,163 +706,214 @@ function pageBorrow(){
     <div class="item-grid">
       ${filtered.map(i=>{
         const s = statusMeta(i.status);
-        return `<button class="item-card" data-item="${i.id}">
-          <div class="item-img">${i.emoji}</div>
+        return `<button class="item-card" data-item="${i.id}" data-name="${esc(i.name.toLowerCase())}">
+          <div class="item-img">${esc(i.emoji)}</div>
           <div class="item-body">
-            <div class="item-name">${i.name}</div>
-            <div class="item-cat">${i.cat}</div>
+            <div class="item-name">${esc(i.name)}</div>
+            <div class="item-cat">${esc(i.cat)}</div>
             <span class="status-badge ${s.cls}">${s.dot} ${s.label}</span>
           </div>
         </button>`;
       }).join("")}
     </div>
-    ${filtered.length===0 ? emptyState("📭","ไม่พบสิ่งของ","ลองค้นหาด้วยคำอื่น หรือเลือกหมวดหมู่ใหม่") : ""}
+    <div id="searchEmpty" style="display:none;">${emptyState("📭","ไม่พบสิ่งของ","ลองค้นหาด้วยคำอื่น")}</div>
+    ${filtered.length===0 ? emptyState("📭","ไม่พบสิ่งของ","ลองเลือกหมวดหมู่อื่น") : ""}
   `;
 }
 
 function itemModal(item){
   const s = statusMeta(item.status);
   if(item.status !== "available"){
-    return `<h3 class="modal-title">${item.emoji} ${item.name}</h3>
+    return `<h3 class="modal-title">${esc(item.emoji)} ${esc(item.name)}</h3>
       <span class="status-badge ${s.cls}" style="margin-bottom:16px;">${s.dot} ${s.label}</span>
-      <p style="font-size:13.5px; color:var(--ink-soft); line-height:1.6;">ขณะนี้สิ่งของชิ้นนี้ยังไม่ว่าง กรุณาลองใหม่ภายหลัง หรือดูรายการอื่นที่พร้อมให้ยืม</p>
+      <p class="modal-text">ขณะนี้สิ่งของชิ้นนี้ยังไม่ว่าง กรุณาลองใหม่ภายหลัง หรือดูรายการอื่นที่พร้อมให้ยืม</p>
       <button class="btn-ghost" data-close="1">ปิด</button>`;
   }
-  return `<h3 class="modal-title">${item.emoji} ${item.name}</h3>
+  return `<h3 class="modal-title">${esc(item.emoji)} ${esc(item.name)}</h3>
     <div class="field">
       <label>เลือกระยะเวลาที่ต้องการยืม</label>
       <div class="duration-grid" id="durGrid">
-        ${item.durations.map((d,idx)=>`<div class="duration-opt ${idx===0?'active':''}" data-dur="${d}">${d}</div>`).join("")}
+        ${DURATIONS.map((d,idx)=>`<div class="duration-opt ${idx===0?'active':''}" data-dur="${d}">${d}</div>`).join("")}
       </div>
     </div>
-    <button class="btn-primary" data-do="confirm-borrow" data-item="${item.id}">ยืนยันขอยืม</button>`;
+    <button class="btn-primary" data-do="confirm-borrow" data-item-id="${item.id}">ยืนยันขอยืม</button>`;
 }
 
-function borrowSuccessModal(item, dur){
-  const code = "BR-" + item.id + "" + Math.floor(Math.random()*900+100);
+function borrowSuccessModal(record){
   return `<h3 class="modal-title">✅ ขอยืมสำเร็จ</h3>
-    <p style="font-size:13.5px; color:var(--ink-soft); margin-bottom:4px;">${item.emoji} ${item.name} · ระยะเวลา ${dur}</p>
-    ${qrBlock(code)}
+    <p class="modal-text">${esc(record.item.emoji)} ${esc(record.item.name)} · ระยะเวลา ${esc(record.duration_label)}</p>
+    ${qrBlock("BR-" + record.id, "รหัสการยืมของคุณ")}
     <div class="card" style="margin-top:16px; background:var(--blue); box-shadow:none;">
-      <div style="font-size:12.5px; color:var(--blue-text); font-weight:600;">⏰ อย่าลืมนำมาคืนก่อนหมดเวลา ระบบจะแจ้งเตือนให้อัตโนมัติ</div>
+      <div style="font-size:12.5px; color:var(--blue-text); font-weight:600;">⏰ กำหนดคืน ${fmtDateTime(record.due_at)} — คืนตรงเวลารับ +${POINT_RULES.returnOnTime} แต้ม ระบบจะเตือนก่อนครบกำหนด 2 ชม.</div>
     </div>
     <button class="btn-primary" style="margin-top:14px;" data-close="1">เสร็จสิ้น</button>`;
 }
 
-function returnFlowModal(){
+function returnModal(record){
   return `<h3 class="modal-title">📦 แจ้งคืนของ</h3>
-    <p style="font-size:13px; color:var(--ink-soft); margin-bottom:14px;">เครื่องดูดฝุ่น · กำหนดคืน 2 ชม. จากนี้</p>
-    <div class="field">
-      <label>อัปโหลดรูปสภาพสิ่งของ (ตอนคืน)</label>
-      <div class="upload-box" id="uploadBox" data-upload="return">
-        <div class="up-icon">📷</div>
-        <div class="up-text">แตะเพื่อถ่ายรูป หรืออัปโหลดรูปภาพ</div>
-        <input type="file" accept="image/*" style="display:none" id="fileInput_return">
-      </div>
-    </div>
-    <button class="btn-primary" data-do="confirm-return">ยืนยันการคืนของ</button>`;
+    <p class="modal-text">${esc(record.item.emoji)} ${esc(record.item.name)} · กำหนดคืน ${fmtDateTime(record.due_at)}</p>
+    ${uploadBox('return', 'ถ่ายรูปสภาพสิ่งของตอนคืน (แนะนำ)')}
+    <div class="field"><label>หมายเหตุ (ถ้ามี)</label><textarea id="returnNote" placeholder="เช่น สภาพปกติ, แบตเตอรี่เหลือน้อย"></textarea></div>
+    <button class="btn-primary" data-do="confirm-return" data-record="${record.id}">ยืนยันการคืนของ</button>`;
 }
 
-function emptyState(emoji, title, sub){
-  return `<div class="empty-state">
-    <div class="empty-emoji">${emoji}</div>
-    <div class="empty-title">${title}</div>
-    <div class="empty-sub">${sub}</div>
+/* ---------- ฝากของ ---------- */
+const DEPOSIT_STATUS = {
+  waiting:   ['รอรับ', 'var(--yellow-bg)', '#B9790E'],
+  collected: ['รับแล้ว', 'var(--green-bg)', '#1F9C6C'],
+  cancelled: ['ยกเลิก', '#F1EFE8', '#6B6A65'],
+};
+
+function depositRow(d){
+  const [label, bg, color] = DEPOSIT_STATUS[d.status] || DEPOSIT_STATUS.waiting;
+  const who = d.direction === 'sent' ? `ฝากให้ห้อง ${esc(d.recipient_username)}` : `จากห้อง ${esc(d.depositor_username)}`;
+  return `<div class="list-row" data-deposit="${d.id}" style="cursor:pointer;">
+    ${thumb(d.image_data, guessEmoji(d.item_name, '📦'))}
+    <div style="flex:1;">
+      <div class="row-title">${esc(d.item_name)}</div>
+      <div class="row-sub">${who}${d.note ? ' · ' + esc(d.note) : ''}</div>
+      ${d.eta ? `<div class="row-meta">นัดรับ: ${esc(d.eta)}</div>` : `<div class="row-meta">${timeAgo(d.created_at)}</div>`}
+      ${pill(label, bg, color)}
+    </div>
   </div>`;
 }
 
 function pageDeposit(){
+  if(loading.deposit && depositsData.length===0) return topbar("ระบบฝากของ") + loadingState();
+  const received = depositsData.filter(d => d.direction==='received' && d.status==='waiting');
+  const sent = depositsData.filter(d => d.direction==='sent' && d.status==='waiting');
+  const done = depositsData.filter(d => d.status!=='waiting');
   return topbar("ระบบฝากของ") + `
     <button class="btn-primary" data-do="new-deposit" style="margin-bottom:20px;">➕ สร้างรายการฝากของใหม่</button>
-    <div class="section-title">รายการฝากของ</div>
-    ${deposits.length===0 ? emptyState("📦","ยังไม่มีของฝาก","สร้างรายการฝากของชิ้นแรกของคุณได้เลย") :
-      deposits.map(d=>`
-      <div class="list-row" data-deposit="${d.id}" style="cursor:pointer;">
-        <div class="row-icon" style="background:var(--pink);">📦</div>
-        <div style="flex:1;">
-          <div class="row-title">${d.what}</div>
-          <div class="row-sub">ฝากให้ห้อง ${d.forRoom} · ${d.note}</div>
-          <div class="row-meta">คาดว่าจะมารับ: ${d.eta}</div>
-          <span class="pill" style="background:var(--yellow-bg); color:#B9790E;">${d.status}</span>
-        </div>
-      </div>
-    `).join("")}
+    ${depositsData.length===0 ? emptyState("📦","ยังไม่มีรายการฝากของ","สร้างรายการฝากของชิ้นแรกของคุณได้เลย") : ''}
+    ${received.length ? `<div class="section-title">📥 ของที่ฝากถึงฉัน (รอรับ)</div>${received.map(depositRow).join("")}` : ''}
+    ${sent.length ? `<div class="section-title">📤 ที่ฉันฝากไว้ (รอผู้รับ)</div>${sent.map(depositRow).join("")}` : ''}
+    ${done.length ? `<div class="section-title">🗂️ ประวัติ</div>${done.map(depositRow).join("")}` : ''}
   `;
 }
 
 function newDepositModal(){
   return `<h3 class="modal-title">📦 สร้างรายการฝากของ</h3>
-    <div class="field"><label>ฝากอะไร?</label><input type="text" placeholder="เช่น กุญแจ, พัสดุ, กระเป๋า"></div>
-    <div class="field"><label>ฝากให้ใคร? (หมายเลขห้อง)</label><input type="text" placeholder="เช่น B-201"></div>
-    <div class="field"><label>คาดว่าจะมารับเมื่อไหร่?</label><input type="text" placeholder="เช่น วันนี้ 20:00 น."></div>
-    <div class="field">
-      <label>อัปโหลดรูปภาพสิ่งของ</label>
-      <div class="upload-box" data-upload="deposit">
-        <div class="up-icon">📷</div>
-        <div class="up-text">แตะเพื่อถ่ายรูป หรืออัปโหลดรูปภาพ</div>
-        <input type="file" accept="image/*" style="display:none" id="fileInput_deposit">
-      </div>
-    </div>
+    <div class="field"><label>ฝากอะไร?</label><input id="depWhat" type="text" placeholder="เช่น กุญแจ, พัสดุ, กระเป๋า"></div>
+    <div class="field"><label>ฝากให้ใคร? (หมายเลขห้อง)</label><input id="depFor" type="text" placeholder="เช่น B-201"></div>
+    <div class="field"><label>คาดว่าจะมารับเมื่อไหร่?</label><input id="depEta" type="text" placeholder="เช่น วันนี้ 20:00 น."></div>
+    <div class="field"><label>รายละเอียดเพิ่มเติม (ถ้ามี)</label><input id="depNote" type="text" placeholder="เช่น ฝากไว้ที่ป้อม รปภ."></div>
+    ${uploadBox('deposit', 'อัปโหลดรูปภาพสิ่งของ (ถ้ามี)')}
     <button class="btn-primary" data-do="confirm-deposit">สร้างรายการฝาก</button>`;
 }
 
-function depositSuccessModal(){
-  const code = "DP-" + Math.floor(Math.random()*9000+1000);
+function depositSuccessModal(d){
   return `<h3 class="modal-title">✅ สร้างรายการฝากสำเร็จ</h3>
-    <p style="font-size:13.5px; color:var(--ink-soft); margin-bottom:4px;">ระบบได้ส่งแจ้งเตือนพร้อม QR Code ไปยังผู้รับแล้ว</p>
-    ${qrBlock(code)}
+    <p class="modal-text">${d.recipient_registered
+      ? `ระบบแจ้งเตือนห้อง ${esc(d.recipient_username)} แล้ว`
+      : `ห้อง ${esc(d.recipient_username)} ยังไม่มีบัญชีในระบบ — แจ้งรหัสนี้ให้ผู้รับ แล้วกดยืนยันเองเมื่อของถึงมือ`}</p>
+    ${qrBlock(d.code, "รหัสรับของ — ผู้รับแสดงรหัสนี้ตอนมารับ")}
     <button class="btn-primary" style="margin-top:16px;" data-close="1">เสร็จสิ้น</button>`;
+}
+
+function depositDetailModal(d){
+  const [label, bg, color] = DEPOSIT_STATUS[d.status] || DEPOSIT_STATUS.waiting;
+  const sent = d.direction === 'sent';
+  return `<h3 class="modal-title">📦 ${esc(d.item_name)}</h3>
+    ${pill(label, bg, color)}
+    <p class="modal-text" style="margin-top:10px;">
+      ${sent ? `ฝากให้ห้อง ${esc(d.recipient_username)}` : `จากห้อง ${esc(d.depositor_username)}`}
+      ${d.note ? `<br>${esc(d.note)}` : ''}
+      ${d.eta ? `<br>นัดรับ: ${esc(d.eta)}` : ''}
+      <br>สร้างเมื่อ ${fmtDateTime(d.created_at)}
+      ${d.collected_at ? `<br>รับของเมื่อ ${fmtDateTime(d.collected_at)}` : ''}
+    </p>
+    ${d.image_data ? `<img class="preview-img" src="${esc(d.image_data)}" alt="">` : ''}
+    ${d.status==='waiting' ? qrBlock(d.code, sent ? "ผู้รับต้องแสดงรหัสนี้ให้ตรงกันก่อนรับของ" : "แสดงรหัสนี้ตอนไปรับของ") : ''}
+    ${d.status==='waiting' && sent && !d.recipient_registered ? `<p class="modal-text">ห้องนี้ยังไม่มีบัญชีในระบบ — เมื่อส่งของถึงมือแล้ว กดยืนยันเองได้เลย</p>` : ''}
+    ${d.status==='waiting' ? `<button class="btn-primary" style="margin-top:12px;" data-do="collect-deposit" data-id="${d.id}">
+        ${sent ? '✅ ยืนยันว่าส่งถึงมือผู้รับแล้ว' : '✅ ยืนยันว่ารับของแล้ว'}</button>` : ''}
+    ${d.status==='waiting' && sent ? `<button class="btn-ghost" style="margin-top:10px;" data-do="cancel-deposit" data-id="${d.id}">ยกเลิกรายการ</button>` : ''}
+    <button class="btn-ghost" style="margin-top:10px;" data-close="1">ปิด</button>`;
+}
+
+/* ---------- ของหายได้คืน ---------- */
+function foundRow(f){
+  let action = '';
+  if(f.is_mine){
+    action = pill('ของที่คุณแจ้งเจอ', 'var(--blue)', 'var(--blue-text)')
+      + (f.pending_claims ? ' ' + pill(`มีคำขอรับ ${f.pending_claims} รายการ ⬆️`, '#FDECEC', '#C0392B') : '');
+  }else if(f.my_claim_status === 'pending'){
+    action = `<button class="btn-secondary" style="margin-top:10px;" disabled>⏳ รอผู้พบตรวจสอบคำขอ</button>`;
+  }else{
+    action = `<button class="btn-secondary" style="margin-top:10px;" data-claim="${f.id}">✋ นี่คือของฉัน${f.my_claim_status==='rejected' ? ' (ส่งคำขอใหม่)' : ''}</button>`;
+  }
+  return `<div class="list-row">
+    ${thumb(f.image_data, f.emoji, 'var(--blue)')}
+    <div style="flex:1;">
+      <div class="row-title">${esc(f.item_name)}</div>
+      <div class="row-sub">พบที่: ${esc(f.location)}${f.found_time ? ' · ' + esc(f.found_time) : ''}</div>
+      <div class="row-meta">แจ้งโดยห้อง ${esc(f.finder_username)} · ${timeAgo(f.created_at)}</div>
+      ${action}
+    </div>
+  </div>`;
+}
+
+function claimCard(c){
+  return `<div class="list-row" style="border:1.5px solid var(--pink-deep);">
+    <div class="row-icon">${esc(c.item_emoji)}</div>
+    <div style="flex:1;">
+      <div class="row-title">ห้อง ${esc(c.claimant_username)} ขอรับ ${esc(c.item_name)}</div>
+      <div class="row-sub">"${esc(c.detail)}"</div>
+      <div class="row-meta">${timeAgo(c.created_at)} · ตรวจสอบว่ารายละเอียดตรงกับของจริงก่อนยืนยัน</div>
+      <div class="btn-row">
+        <button class="btn-primary" data-do="approve-claim" data-id="${c.id}" data-who="${esc(c.claimant_username)}">✅ ใช่ คืนให้เลย</button>
+        <button class="btn-ghost" data-do="reject-claim" data-id="${c.id}">❌ ไม่ตรง</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function lostRow(l){
+  return `<div class="list-row">
+    ${thumb(l.image_data, l.emoji, 'var(--pink)')}
+    <div style="flex:1;">
+      <div class="row-title">${esc(l.item_name)}</div>
+      <div class="row-sub">หายที่: ${esc(l.location_time)}</div>
+      <div class="row-meta">ประกาศโดยห้อง ${esc(l.reporter_username)} · ${timeAgo(l.created_at)}</div>
+      ${l.is_mine ? `<button class="btn-secondary" style="margin-top:10px;" data-do="resolve-lost" data-id="${l.id}">😊 เจอแล้ว ปิดประกาศ</button>` : ''}
+    </div>
+  </div>`;
 }
 
 function pageLostFound(){
   const tab = state.lfTab;
+  const first = loading.lostfound && foundData.length===0 && lostData.length===0 && leaderboardData.length===0;
   return topbar("ของหายได้คืน") + `
     <div class="tabbar">
       <button class="tabbtn ${tab==='found'?'active':''}" data-lftab="found">🎁 พบของ</button>
       <button class="tabbtn ${tab==='lost'?'active':''}" data-lftab="lost">📢 ตามหาของ</button>
       <button class="tabbtn ${tab==='board'?'active':''}" data-lftab="board">🏆 อันดับ</button>
     </div>
+    ${first ? loadingState() : ''}
 
-    ${tab==='found' ? `
+    ${tab==='found' && !first ? `
       <button class="btn-primary" data-do="new-found" style="margin-bottom:18px;">➕ แจ้งเจอของหาย</button>
-      ${foundItems.length===0 ? emptyState("📦","ยังไม่มีของหายในขณะนี้","เยี่ยมไปเลย!") :
-        foundItems.map(f=>`
-        <div class="list-row">
-          <div class="row-icon" style="background:var(--blue);">${f.emoji}</div>
-          <div style="flex:1;">
-            <div class="row-title">${f.what}</div>
-            <div class="row-sub">พบที่: ${f.place} · ${f.time}</div>
-            <span class="pill" style="background:var(--yellow-bg); color:#B9790E;">${f.status}</span>
-            <button class="btn-secondary" style="margin-top:10px;" data-claim="${f.id}">✋ นี่คือของฉัน</button>
-          </div>
-        </div>
-      `).join("")}
+      ${incomingClaims.length ? `<div class="section-title">🔔 คำขอรับของที่รอคุณยืนยัน</div>${incomingClaims.map(claimCard).join("")}<div class="section-title">ของที่รอเจ้าของ</div>` : ''}
+      ${foundData.length===0 ? emptyState("📦","ยังไม่มีของหายในขณะนี้","เยี่ยมไปเลย!") : foundData.map(foundRow).join("")}
     ` : ""}
 
-    ${tab==='lost' ? `
+    ${tab==='lost' && !first ? `
       <button class="btn-primary" data-do="new-lost" style="margin-bottom:18px;">➕ ประกาศตามหาของ</button>
-      ${lostItems.length===0 ? emptyState("🔍","ยังไม่มีประกาศตามหาของ","หวังว่าจะไม่มีใครทำของหายนะ!") :
-        lostItems.map(f=>`
-        <div class="list-row">
-          <div class="row-icon" style="background:var(--pink);">${f.emoji}</div>
-          <div>
-            <div class="row-title">${f.what}</div>
-            <div class="row-sub">หายที่: ${f.place} · ${f.time}</div>
-          </div>
-        </div>
-      `).join("")}
+      ${lostData.length===0 ? emptyState("🔍","ยังไม่มีประกาศตามหาของ","หวังว่าจะไม่มีใครทำของหายนะ!") : lostData.map(lostRow).join("")}
     ` : ""}
 
-    ${tab==='board' ? `
+    ${tab==='board' && !first ? `
       <div class="card" style="background:linear-gradient(135deg,var(--blue-deep),var(--blue)); box-shadow:none; margin-bottom:18px;">
         <div style="font-weight:700; font-family:'Baloo 2'; color:#fff; font-size:15px;">🏆 คนดีศรีหอพัก ประจำเดือน</div>
-        <div style="font-size:12px; color:#fff; opacity:.9; margin-top:2px;">ใครเก็บของคืนได้มากสุด ได้แต้มมากสุด!</div>
+        <div style="font-size:12px; color:#fff; opacity:.9; margin-top:2px;">นับแต้มที่ได้ในเดือนนี้ — คืนของหายให้เจ้าของได้มากสุด +${POINT_RULES.foundReturned}!</div>
       </div>
-      ${leaderboard.map((p,idx)=>`
-        <div class="list-row">
+      ${leaderboardData.length===0 ? emptyState("🌟","ยังไม่มีใครได้แต้มเดือนนี้","เป็นคนแรกที่ทำความดีเลย!") :
+        leaderboardData.map((p,idx)=>`
+        <div class="list-row" ${p.is_me?'style="border:1.5px solid var(--pink-deep);"':''}>
           <div class="row-icon" style="background:${idx===0?'var(--yellow-bg)':'var(--pink)'};">${idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':'🎖️'}</div>
           <div style="flex:1; display:flex; align-items:center; justify-content:space-between;">
-            <div class="row-title" style="margin:0;">${p.name}</div>
+            <div class="row-title" style="margin:0;">ห้อง ${esc(p.username)}${p.is_me?' (คุณ)':''}</div>
             <div style="font-weight:700; color:var(--pink-text); font-family:'Baloo 2';">${p.points} 🪙</div>
           </div>
         </div>
@@ -726,77 +924,61 @@ function pageLostFound(){
 
 function newFoundModal(){
   return `<h3 class="modal-title">🎁 แจ้งเจอของหาย</h3>
-    <div class="field"><label>เจออะไร?</label><input type="text" placeholder="เช่น กระเป๋าสตางค์, หูฟัง"></div>
-    <div class="field"><label>เจอที่ไหน?</label><input type="text" placeholder="เช่น หน้าลิฟต์ชั้น 3"></div>
-    <div class="field"><label>วัน-เวลาที่เจอ</label><input type="text" placeholder="เช่น วันนี้ 09:00 น."></div>
-    <div class="field">
-      <label>อัปโหลดรูปภาพของที่เจอ</label>
-      <div class="upload-box" data-upload="found">
-        <div class="up-icon">📷</div>
-        <div class="up-text">แตะเพื่อถ่ายรูป หรืออัปโหลดรูปภาพ</div>
-        <input type="file" accept="image/*" style="display:none" id="fileInput_found">
-      </div>
-    </div>
+    <div class="field"><label>เจออะไร?</label><input id="foundWhat" type="text" placeholder="เช่น กระเป๋าสตางค์, หูฟัง"></div>
+    <div class="field"><label>เจอที่ไหน?</label><input id="foundWhere" type="text" placeholder="เช่น หน้าลิฟต์ชั้น 3"></div>
+    <div class="field"><label>วัน-เวลาที่เจอ</label><input id="foundWhen" type="text" placeholder="เช่น วันนี้ 09:00 น."></div>
+    ${uploadBox('found', 'อัปโหลดรูปภาพของที่เจอ (แนะนำ)')}
+    <p class="modal-text">เก็บของไว้กับตัวก่อน เมื่อมีคนขอรับ คุณจะเป็นคนตรวจสอบรายละเอียดและยืนยัน — คืนสำเร็จรับ +${POINT_RULES.foundReturned} แต้ม</p>
     <button class="btn-primary" data-do="confirm-found">ส่งเรื่อง</button>`;
 }
 function newLostModal(){
   return `<h3 class="modal-title">📢 ประกาศตามหาของ</h3>
-    <div class="field"><label>ของที่หายคืออะไร?</label><input type="text" placeholder="เช่น ร่มพับสีดำ"></div>
-    <div class="field"><label>หายที่ไหน / เมื่อไหร่ (โดยประมาณ)</label><input type="text" placeholder="เช่น โรงอาหาร เมื่อวานเย็น"></div>
-    <div class="field">
-      <label>รูปภาพอ้างอิง (ถ้ามี)</label>
-      <div class="upload-box" data-upload="lost">
-        <div class="up-icon">📷</div>
-        <div class="up-text">แตะเพื่อถ่ายรูป หรืออัปโหลดรูปภาพ</div>
-        <input type="file" accept="image/*" style="display:none" id="fileInput_lost">
-      </div>
-    </div>
+    <div class="field"><label>ของที่หายคืออะไร?</label><input id="lostWhat" type="text" placeholder="เช่น ร่มพับสีดำ"></div>
+    <div class="field"><label>หายที่ไหน / เมื่อไหร่ (โดยประมาณ)</label><input id="lostWhere" type="text" placeholder="เช่น โรงอาหาร เมื่อวานเย็น"></div>
+    ${uploadBox('lost', 'รูปภาพอ้างอิง (ถ้ามี)')}
+    <p class="modal-text">ถ้ามีคนแจ้งเจอของที่ชื่อคล้ายกัน ระบบจะแจ้งเตือนคุณทันที</p>
     <button class="btn-primary" data-do="confirm-lost">ประกาศตามหา</button>`;
 }
 function claimModal(item){
   return `<h3 class="modal-title">✋ ยืนยันว่าเป็นของฉัน</h3>
-    <p style="font-size:13px; color:var(--ink-soft); margin-bottom:14px;">${item.emoji} ${item.what}</p>
-    <div class="field"><label>อธิบายรายละเอียดเพิ่มเติม เพื่อให้นิติบุคคลตรวจสอบก่อนมารับ</label>
-      <textarea placeholder="เช่น ลักษณะเฉพาะ, สิ่งของด้านใน..."></textarea>
+    <p class="modal-text">${esc(item.emoji)} ${esc(item.item_name)} · แจ้งโดยห้อง ${esc(item.finder_username)}</p>
+    <div class="field"><label>บอกลักษณะเฉพาะที่มีแต่เจ้าของรู้ เพื่อให้ผู้พบตรวจสอบ</label>
+      <textarea id="claimDetail" placeholder="เช่น มีสติกเกอร์แมวที่กล่อง, ด้านในมีบัตรนักศึกษาชื่อ..."></textarea>
     </div>
-    <button class="btn-primary" data-do="confirm-claim">ส่งคำขอรับของ</button>`;
+    <button class="btn-primary" data-do="confirm-claim" data-id="${item.id}">ส่งคำขอรับของ</button>`;
 }
 
+/* ---------- โปรไฟล์ / แจ้งเตือน ---------- */
 function pageProfile(){
   return topbar("โปรไฟล์ของฉัน") + `
     <div class="card" style="text-align:center;">
       <div class="avatar" style="width:64px;height:64px;font-size:30px;margin:0 auto 10px;">🙂</div>
-      <div style="font-family:'Baloo 2'; font-weight:700; font-size:17px;">${user.name}</div>
-      <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:14px;">ห้อง ${user.room}</div>
+      <div style="font-family:'Baloo 2'; font-weight:700; font-size:17px;">${esc(user.name || 'ห้อง ' + user.room)}</div>
+      <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:14px;">ห้อง ${esc(user.room)}</div>
       <div class="points-card" style="margin-bottom:0;">
         <div class="label">🪙 แต้มความดีของคุณ</div>
         <div class="value" style="justify-content:center;"><span class="coin">🪙</span>${user.points} แต้ม</div>
       </div>
     </div>
     <div class="section-title">ประวัติการทำรายการ</div>
-    ${user.history.map(h=>`
-      <div class="list-row">
-        <div class="row-icon">${h.icon}</div>
-        <div>
-          <div class="row-title">${h.text}</div>
-          <div class="row-meta">${h.time}</div>
-        </div>
-      </div>
-    `).join("")}
+    ${loading.profile && activityData.length===0 ? loadingState()
+      : activityData.length===0 ? emptyState("📜","ยังไม่มีประวัติ","ทุกการยืม ฝาก และช่วยเหลือจะถูกบันทึกไว้ที่นี่")
+      : activityData.map(activityRow).join("")}
     <button class="btn-ghost" style="margin-top:6px;" data-do="logout">ออกจากระบบ</button>
   `;
 }
 
 function pageNotifications(){
+  if(loading.notifications && notificationsData.length===0) return topbar("การแจ้งเตือน") + loadingState();
   return topbar("การแจ้งเตือน") + `
-    ${notifications.length===0 ? emptyState("🔔","ยังไม่มีการแจ้งเตือน","เมื่อมีความเคลื่อนไหวจะแจ้งให้ทราบที่นี่") :
-      notifications.map(n=>`
-      <div class="list-row" style="background:${n.unread?'#fff':'#fff'}; ${n.unread?'border:1.5px solid var(--pink-deep);':''}">
-        <div class="row-icon" style="background:${n.unread?'var(--pink)':'var(--blue)'};">${n.icon}</div>
+    ${notificationsData.length===0 ? emptyState("🔔","ยังไม่มีการแจ้งเตือน","เมื่อมีความเคลื่อนไหวจะแจ้งให้ทราบที่นี่") :
+      notificationsData.map(n=>`
+      <div class="list-row" ${!n.is_read?'style="border:1.5px solid var(--pink-deep);"':''}>
+        <div class="row-icon" style="background:${!n.is_read?'var(--pink)':'var(--blue)'};">${esc(n.icon)}</div>
         <div>
-          <div class="row-title">${n.title}</div>
-          <div class="row-sub">${n.sub}</div>
-          <div class="row-meta">${n.time}</div>
+          <div class="row-title">${esc(n.title)}</div>
+          ${n.body ? `<div class="row-sub">${esc(n.body)}</div>` : ''}
+          <div class="row-meta">${timeAgo(n.created_at)}</div>
         </div>
       </div>
     `).join("")}
@@ -825,10 +1007,25 @@ function render(){
   }
 }
 
+/* ===================== AUTH FLOW ===================== */
+async function completeLogin(){
+  const me = await api('/me');
+  user.room = me.username;
+  user.name = me.full_name || '';
+  goto('home');
+}
+
+function resetAppData(){
+  items = []; myBorrows = []; depositsData = []; foundData = []; lostData = [];
+  incomingClaims = []; leaderboardData = []; notificationsData = []; activityData = [];
+  recentActivity = []; unreadCount = 0; loading = {};
+  user.name = ''; user.room = ''; user.points = 0;
+}
+
 /* ===================== EVENTS (delegated) ===================== */
 document.body.addEventListener('click', async (e)=>{
-  const t = e.target.closest('[data-nav], [data-back], [data-authmode], [data-do], [data-cat], [data-item], [data-close], [data-lftab], [data-dur], [data-claim], [data-upload], [data-deposit]');
-  if(!t) return;
+  const t = e.target.closest('[data-nav], [data-back], [data-authmode], [data-do], [data-cat], [data-item], [data-close], [data-lftab], [data-dur], [data-upload], [data-deposit], [data-return], [data-claim]');
+  if(!t || t.disabled) return;
 
   if(t.dataset.nav){ goto(t.dataset.nav); return; }
   if(t.dataset.back !== undefined){ goto('home'); return; }
@@ -841,140 +1038,236 @@ document.body.addEventListener('click', async (e)=>{
     t.classList.add('active');
     return;
   }
-  if(t.dataset.upload){
-    document.getElementById('fileInput_' + t.dataset.upload).click();
-    return;
-  }
+  if(t.dataset.upload){ document.getElementById('fileInput_' + t.dataset.upload).click(); return; }
   if(t.dataset.deposit){
-    const d = deposits.find(x=>x.id==t.dataset.deposit);
-    openModal(`<h3 class="modal-title">📦 ${d.what}</h3>
-      <p style="font-size:13px;color:var(--ink-soft);">ฝากให้ห้อง ${d.forRoom} · ${d.note}<br>คาดว่าจะมารับ: ${d.eta}</p>
-      ${qrBlock("DP-"+d.id+"00"+d.id)}
-      <button class="btn-ghost" style="margin-top:12px;" data-close="1">ปิด</button>`);
+    const d = depositsData.find(x=>x.id==t.dataset.deposit);
+    if(d) openModal(depositDetailModal(d));
     return;
   }
   if(t.dataset.claim){
-    const it = foundItems.find(x=>x.id==t.dataset.claim);
-    openModal(claimModal(it));
+    const f = foundData.find(x=>x.id==t.dataset.claim);
+    if(f) openModal(claimModal(f));
     return;
   }
   if(t.dataset.item){
     const it = items.find(x=>x.id==t.dataset.item);
-    if(it.status === 'available'){
-      openModal(itemModal(it) + `<div style="text-align:center;margin-top:14px;">
-        <button class="btn-ghost" data-simulate-return="${it.id}" style="font-size:12px;padding:10px;">หรือ จำลอง: แจ้งคืนของชิ้นนี้</button></div>`);
-    } else {
-      openModal(itemModal(it));
-    }
+    if(it) openModal(itemModal(it));
+    return;
+  }
+  if(t.dataset.return){
+    const rec = myBorrows.find(b=>b.id==t.dataset.return);
+    if(rec) openModal(returnModal(rec));
     return;
   }
 
+  const id = t.dataset.id;
   switch(t.dataset.do){
+    /* ---------- เข้าสู่ระบบ / สมัคร / ออก ---------- */
     case 'login': {
-      const username = document.getElementById('authUsername').value.trim();
+      const username = val('authUsername');
       const password = document.getElementById('authPassword').value;
       state.authUsername = username;
       if(!username || !password){ state.authError = 'กรอกหมายเลขห้องพักและรหัสผ่านให้ครบ'; render(); break; }
       state.authError = null; state.authLoading = true; render();
       try{
-        const loginRes = await apiLogin(username, password);
-        authToken = loginRes.access_token;
+        const res = await api('/login', { method:'POST', form:{ username, password }, auth:false });
+        authToken = res.access_token;
         localStorage.setItem('dsc_token', authToken);
-        const me = await apiMe(authToken);
-        user.name = me.username || username;
-        user.room = username;
         state.authLoading = false;
-        goto('home');
+        await completeLogin();
         showToast('เข้าสู่ระบบสำเร็จ ยินดีต้อนรับกลับมา!', '👋');
       }catch(err){
-        state.authLoading = false;
-        state.authError = err.message;
-        render();
+        state.authLoading = false; state.authError = err.message; render();
       }
       break;
     }
     case 'register': {
-      const username = document.getElementById('authUsername').value.trim();
-      const email = document.getElementById('authEmail').value.trim();
+      const username = val('authUsername');
+      const fullName = val('authFullName');
+      const email = val('authEmail');
       const password = document.getElementById('authPassword').value;
-      state.authUsername = username;
-      state.authEmail = email;
-      if(!username || !email || !password){ state.authError = 'กรอกข้อมูลให้ครบทุกช่อง'; render(); break; }
+      Object.assign(state, { authUsername: username, authFullName: fullName, authEmail: email });
+      if(!username || !password){ state.authError = 'กรอกหมายเลขห้องพักและรหัสผ่านให้ครบ'; render(); break; }
       state.authError = null; state.authLoading = true; render();
       try{
-        await apiRegister(username, email, password);
-        const loginRes = await apiLogin(username, password);
-        authToken = loginRes.access_token;
+        await api('/register', { method:'POST', auth:false,
+          body:{ username, password, email: email || null, full_name: fullName || null } });
+        const res = await api('/login', { method:'POST', form:{ username, password }, auth:false });
+        authToken = res.access_token;
         localStorage.setItem('dsc_token', authToken);
-        const me = await apiMe(authToken);
-        user.name = me.username || username;
-        user.room = username;
         state.authLoading = false;
-        goto('home');
+        await completeLogin();
         showToast('สมัครสมาชิกสำเร็จ ยินดีต้อนรับ!', '🎉');
       }catch(err){
-        state.authLoading = false;
-        state.authError = err.message;
-        render();
+        state.authLoading = false; state.authError = err.message; render();
       }
       break;
     }
-    case 'login-line':
-      showToast('เข้าสู่ระบบด้วย Line ยังเป็นการจำลอง (ยังไม่เชื่อมจริง)', '💬');
+    case 'logout':
+      api('/logout', { method:'POST' }).catch(()=>{});
+      authToken = null;
+      localStorage.removeItem('dsc_token');
+      resetAppData();
+      state.page = 'auth'; state.authMode = 'login'; state.authError = null;
+      render();
       break;
-    case 'new-deposit': openModal(newDepositModal()); break;
-    case 'confirm-deposit': openModal(depositSuccessModal()); break;
-    case 'new-found': openModal(newFoundModal()); break;
-    case 'confirm-found':
-      closeModal();
-      showToast('แจ้งเจอของหายเรียบร้อย ขอบคุณสำหรับความดีของคุณ!', '🎉');
-      break;
-    case 'new-lost': openModal(newLostModal()); break;
-    case 'confirm-lost':
-      closeModal();
-      showToast('ประกาศตามหาของเรียบร้อยแล้ว', '📢');
-      break;
-    case 'confirm-claim':
-      closeModal();
-      showToast('ส่งคำขอรับของแล้ว รอนิติบุคคลตรวจสอบ', '✋');
-      break;
+
+    /* ---------- ยืม-คืน ---------- */
     case 'confirm-borrow': {
-      const it = items.find(x=>x.id==t.dataset.item);
       const durEl = document.querySelector('.duration-opt.active');
-      const dur = durEl ? durEl.dataset.dur : it.durations[0];
-      openModal(borrowSuccessModal(it, dur));
-      user.points += 0;
+      const dur = durEl ? durEl.dataset.dur : DURATIONS[0];
+      await withBusy(t, 'กำลังส่งคำขอ...', async ()=>{
+        const record = await api(`/items/${t.dataset.itemId}/borrow`, { method:'POST', body:{ duration_label: dur } });
+        openModal(borrowSuccessModal(record));
+        loadPage('borrow');
+      });
       break;
     }
     case 'confirm-return':
-      closeModal();
-      showToast('แจ้งคืนของสำเร็จ ขอบคุณที่ดูแลของส่วนกลาง!', '✅');
+      await withBusy(t, 'กำลังส่ง...', async ()=>{
+        const res = await api(`/borrow/${t.dataset.record}/return`, { method:'POST',
+          body:{ image_data: uploads.return || null, note: val('returnNote') || null } });
+        closeModal();
+        showToast(res.points_awarded > 0
+          ? `คืนของสำเร็จ! ได้รับ +${res.points_awarded} แต้ม`
+          : 'แจ้งคืนของสำเร็จ ขอบคุณที่ดูแลของส่วนกลาง!', res.points_awarded > 0 ? '🎉' : '✅');
+        loadPage('borrow');
+      });
       break;
-    case 'logout':
-      apiLogout(authToken);
-      authToken = null;
-      localStorage.removeItem('dsc_token');
-      state.page = 'auth';
-      state.authMode = 'login';
-      render();
-      break;
-  }
 
-  if(t.dataset.simulateReturn !== undefined){
-    openModal(returnFlowModal());
+    /* ---------- ฝากของ ---------- */
+    case 'new-deposit': openModal(newDepositModal()); break;
+    case 'confirm-deposit': {
+      const item_name = val('depWhat'), recipient_username = val('depFor');
+      if(!item_name || !recipient_username){ showToast('กรอก "ฝากอะไร" และ "ฝากให้ห้องไหน" ให้ครบ', '⚠️'); break; }
+      await withBusy(t, 'กำลังสร้างรายการ...', async ()=>{
+        const d = await api('/deposits', { method:'POST', body:{
+          item_name, recipient_username, eta: val('depEta') || null, note: val('depNote') || null,
+          image_data: uploads.deposit || null } });
+        openModal(depositSuccessModal(d));
+        loadPage('deposit');
+      });
+      break;
+    }
+    case 'collect-deposit':
+      await withBusy(t, 'กำลังยืนยัน...', async ()=>{
+        const d = await api(`/deposits/${id}/collect`, { method:'POST' });
+        closeModal();
+        showToast(d.direction === 'sent'
+          ? `ส่งของถึงมือแล้ว! ได้รับ +${POINT_RULES.depositHandedOff} แต้ม`
+          : 'ยืนยันรับของเรียบร้อย', d.direction === 'sent' ? '🎉' : '📥');
+        loadPage('deposit');
+      });
+      break;
+    case 'cancel-deposit':
+      if(!confirm('ยกเลิกรายการฝากนี้ใช่ไหม?')) break;
+      await withBusy(t, 'กำลังยกเลิก...', async ()=>{
+        await api(`/deposits/${id}/cancel`, { method:'POST' });
+        closeModal(); showToast('ยกเลิกรายการฝากแล้ว', '🚫');
+        loadPage('deposit');
+      });
+      break;
+
+    /* ---------- ของหายได้คืน ---------- */
+    case 'new-found': openModal(newFoundModal()); break;
+    case 'confirm-found': {
+      const item_name = val('foundWhat'), location = val('foundWhere');
+      if(!item_name || !location){ showToast('กรอก "เจออะไร" และ "เจอที่ไหน" ให้ครบ', '⚠️'); break; }
+      await withBusy(t, 'กำลังส่ง...', async ()=>{
+        await api('/found', { method:'POST', body:{
+          item_name, location, found_time: val('foundWhen') || null,
+          emoji: guessEmoji(item_name, '🎁'), image_data: uploads.found || null } });
+        closeModal();
+        showToast('แจ้งเจอของเรียบร้อย ขอบคุณสำหรับความดีของคุณ!', '🎉');
+        state.lfTab = 'found'; loadPage('lostfound');
+      });
+      break;
+    }
+    case 'new-lost': openModal(newLostModal()); break;
+    case 'confirm-lost': {
+      const item_name = val('lostWhat'), location_time = val('lostWhere');
+      if(!item_name || !location_time){ showToast('กรอกชื่อของและสถานที่ที่หายให้ครบ', '⚠️'); break; }
+      await withBusy(t, 'กำลังประกาศ...', async ()=>{
+        await api('/lost', { method:'POST', body:{
+          item_name, location_time, emoji: guessEmoji(item_name, '🔍'), image_data: uploads.lost || null } });
+        closeModal();
+        showToast('ประกาศตามหาของเรียบร้อยแล้ว', '📢');
+        state.lfTab = 'lost'; loadPage('lostfound');
+      });
+      break;
+    }
+    case 'confirm-claim': {
+      const detail = val('claimDetail');
+      if(detail.length < 5){ showToast('อธิบายลักษณะของอย่างน้อย 5 ตัวอักษร', '⚠️'); break; }
+      await withBusy(t, 'กำลังส่ง...', async ()=>{
+        await api(`/found/${id}/claims`, { method:'POST', body:{ detail } });
+        closeModal();
+        showToast('ส่งคำขอแล้ว รอผู้พบตรวจสอบ', '✋');
+        loadPage('lostfound');
+      });
+      break;
+    }
+    case 'approve-claim':
+      if(!confirm(`ยืนยันว่าห้อง ${t.dataset.who} เป็นเจ้าของจริง และจะคืนของให้?`)) break;
+      await withBusy(t, '...', async ()=>{
+        await api(`/claims/${id}/approve`, { method:'POST' });
+        showToast(`คืนของให้เจ้าของแล้ว! ได้รับ +${POINT_RULES.foundReturned} แต้ม`, '🎉');
+        loadPage('lostfound');
+      });
+      break;
+    case 'reject-claim':
+      await withBusy(t, '...', async ()=>{
+        await api(`/claims/${id}/reject`, { method:'POST' });
+        showToast('ปฏิเสธคำขอแล้ว', '❌');
+        loadPage('lostfound');
+      });
+      break;
+    case 'resolve-lost':
+      await withBusy(t, 'กำลังปิดประกาศ...', async ()=>{
+        await api(`/lost/${id}/resolve`, { method:'POST' });
+        showToast('ดีใจด้วยที่เจอของแล้ว!', '😊');
+        loadPage('lostfound');
+      });
+      break;
   }
 });
 
-document.body.addEventListener('change', (e)=>{
-  if(e.target.type === 'file' && e.target.files[0]){
-    const reader = new FileReader();
-    reader.onload = function(ev){
-      const box = e.target.closest('.upload-box');
-      let img = box.querySelector('.preview-img');
-      if(!img){ img = document.createElement('img'); img.className='preview-img'; box.appendChild(img); }
-      img.src = ev.target.result;
-    };
-    reader.readAsDataURL(e.target.files[0]);
+/* รูปที่ผู้ใช้เลือก: ย่อขนาด → เก็บไว้ใน uploads[key] → แสดงตัวอย่าง (ส่งขึ้น server ตอนกดยืนยัน) */
+document.body.addEventListener('change', async (e)=>{
+  if(e.target.type !== 'file' || !e.target.files[0]) return;
+  const key = e.target.id.replace('fileInput_', '');
+  const box = e.target.closest('.upload-box');
+  try{
+    const dataUrl = await compressImage(e.target.files[0]);
+    uploads[key] = dataUrl;
+    let img = box.querySelector('.preview-img');
+    if(!img){ img = document.createElement('img'); img.className = 'preview-img'; box.appendChild(img); }
+    img.src = dataUrl;
+    const txt = box.querySelector('.up-text'); if(txt) txt.textContent = 'แตะเพื่อเปลี่ยนรูป';
+  }catch(err){
+    showToast(err.message, '⚠️');
+  }
+});
+
+/* ค้นหาของส่วนกลาง: กรองการ์ดในหน้าทันทีโดยไม่ re-render (ช่องค้นหาจะได้ไม่หลุดโฟกัส) */
+document.body.addEventListener('input', (e)=>{
+  if(e.target.id !== 'searchInput') return;
+  const q = e.target.value.trim().toLowerCase();
+  let shown = 0;
+  document.querySelectorAll('.item-card').forEach(card=>{
+    const match = !q || card.dataset.name.includes(q);
+    card.style.display = match ? '' : 'none';
+    if(match) shown++;
+  });
+  const empty = document.getElementById('searchEmpty');
+  if(empty) empty.style.display = (q && shown===0) ? '' : 'none';
+});
+
+/* กด Enter ในหน้าเข้าสู่ระบบ = กดปุ่ม */
+document.body.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' && state.page === 'auth' && e.target.tagName === 'INPUT'){
+    const btn = document.querySelector('.auth-wrap .btn-primary');
+    if(btn && !btn.disabled) btn.click();
   }
 });
 
@@ -990,19 +1283,26 @@ function bouncePoints(){
 const _origGoto = goto;
 goto = function(page){ _origGoto(page); if(page==='home') setTimeout(bouncePoints, 80); };
 
+/* เช็กแจ้งเตือนใหม่ทุก 30 วินาที (อัปเดตจุดแดงที่กระดิ่ง + แต้ม) */
+setInterval(async ()=>{
+  if(!authToken || state.page === 'auth' || document.hidden) return;
+  try{
+    applySummary(await api('/summary/me'));
+    updateBell();
+    if(state.page === 'home' && !document.getElementById('modalOverlay').classList.contains('open')) render();
+  }catch(e){ /* เงียบไว้ ไม่รบกวนผู้ใช้ */ }
+}, 30000);
+
 /* ===================== INIT: restore session if we have a token ===================== */
 (async function initSession(){
-  if(authToken){
-    try{
-      const me = await apiMe(authToken);
-      user.name = me.username || user.name;
-      state.page = 'home';
-    }catch(e){
-      authToken = null;
-      localStorage.removeItem('dsc_token');
-    }
+  if(!authToken){ render(); return; }
+  try{
+    await completeLogin();
+  }catch(err){
+    if(state.page !== 'auth'){ state.page = 'auth'; }
+    state.authError = err.message;
+    render();
   }
-  render();
 })();
 </script>
 </body>
