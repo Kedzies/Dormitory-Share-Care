@@ -15,6 +15,7 @@ class User(Base):
     full_name = Column(String(120), nullable=True)
     hashed_password = Column(String(255), nullable=False)
     is_active = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False)  # นิติบุคคล / ผู้ดูแลหอพัก
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -31,7 +32,8 @@ class Item(Base):
     name = Column(String(100), nullable=False)
     category = Column(String(50), nullable=False, default="อื่นๆ")
     emoji = Column(String(10), default="📦")
-    # available | borrowed | repair
+    quantity = Column(Integer, nullable=False, default=1)  # จำนวนชิ้นทั้งหมดที่หอมี
+    # available | repair | retired  (จำนวนที่ว่าง = quantity - รายการยืมที่ยังไม่คืน คำนวณสด ไม่เก็บซ้ำ)
     status = Column(String(20), nullable=False, default="available")
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

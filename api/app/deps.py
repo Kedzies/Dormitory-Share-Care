@@ -26,3 +26,10 @@ def get_current_user(
     if user is None or not user.is_active:
         raise credentials_exception
     return user
+
+
+def get_current_admin(current_user: models.User = Depends(get_current_user)) -> models.User:
+    """ใช้กับ endpoint ของนิติบุคคลเท่านั้น"""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="เฉพาะเจ้าหน้าที่นิติบุคคลเท่านั้น")
+    return current_user

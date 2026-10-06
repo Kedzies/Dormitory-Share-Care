@@ -43,6 +43,25 @@ def total_points(db: Session, user_id: int) -> int:
     return int(total or 0)
 
 
+def borrowed_counts(db: Session) -> dict[int, int]:
+    """จำนวนชิ้นที่ถูกยืมอยู่ (ยังไม่คืน) ของแต่ละ item_id"""
+    rows = (
+        db.query(models.BorrowRecord.item_id, func.count(models.BorrowRecord.id))
+        .filter(models.BorrowRecord.status == "active")
+        .group_by(models.BorrowRecord.item_id)
+        .all()
+    )
+    return {item_id: n for item_id, n in rows}
+
+
+def item_availability(item: models.Item, borrowed: int) -> tuple[int, str]:
+    """คืน (จำนวนที่ว่าง, สถานะที่แสดงผล) — สถานะ borrowed = ถูกยืมหมดทุกชิ้น"""
+    if item.status != "available":
+        return 0, item.status
+    available = max((item.quantity or 0) - borrowed, 0)
+    return available, ("available" if available > 0 else "borrowed")
+
+
 def find_user_by_username(db: Session, username: str):
     return db.query(models.User).filter(models.User.username == username).first()
 

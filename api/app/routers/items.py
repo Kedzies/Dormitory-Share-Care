@@ -7,12 +7,34 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..deps import get_current_user
-from ..services import MIN_BORROW_FOR_POINTS, POINTS_RETURN_ON_TIME, award_points, log_activity
+from ..services import (
+    MIN_BORROW_FOR_POINTS,
+    POINTS_RETURN_ON_TIME,
+    award_points,
+    borrowed_counts,
+    item_availability,
+    log_activity,
+)
 
 router = APIRouter(tags=["Borrowing"])
 
 # ระยะเวลายืมที่รองรับ -> จำนวนชั่วโมงก่อนครบกำหนดคืน
 ALLOWED_DURATIONS = {"1 ชม.": 1, "1 วัน": 24, "3 วัน": 72}
+
+
+def item_out(item: models.Item, borrowed: int) -> schemas.ItemOut:
+    available, shown_status = item_availability(item, borrowed)
+    return schemas.ItemOut(
+        id=item.id,
+        name=item.name,
+        category=item.category,
+        emoji=item.emoji,
+        status=shown_status,
+        quantity=item.quantity,
+        borrowed_count=borrowed,
+        available_count=available,
+        created_at=item.created_at,
+    )
 
 
 @router.get("/items", response_model=list[schemas.ItemOut])
@@ -22,32 +44,15 @@ def list_items(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    query = db.query(models.Item)
+    """ของส่วนกลางพร้อมจำนวนที่ว่างตอนนี้ (ของที่นิติปิดใช้งานแล้วจะไม่แสดง)"""
+    query = db.query(models.Item).filter(models.Item.status != "retired")
     if category and category != "ทั้งหมด":
         query = query.filter(models.Item.category == category)
+    counts = borrowed_counts(db)
+    result = [item_out(i, counts.get(i.id, 0)) for i in query.order_by(models.Item.id).all()]
     if status_filter:
-        query = query.filter(models.Item.status == status_filter)
-    return query.order_by(models.Item.id).all()
-
-
-@router.post("/items", response_model=schemas.ItemOut, status_code=status.HTTP_201_CREATED)
-def create_item(
-    payload: schemas.ItemCreate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
-):
-    item = models.Item(
-        name=payload.name,
-        category=payload.category,
-        emoji=payload.emoji,
-        status="available",
-        owner_id=current_user.id,
-    )
-    db.add(item)
-    log_activity(db, current_user.id, item.emoji, f"เพิ่ม {item.name} เป็นของส่วนกลาง")
-    db.commit()
-    db.refresh(item)
-    return item
+        result = [i for i in result if i.status == status_filter]
+    return result
 
 
 @router.post("/items/{item_id}/borrow", response_model=schemas.BorrowRecordOut, status_code=status.HTTP_201_CREATED)
@@ -60,11 +65,19 @@ def borrow_item(
     if payload.duration_label not in ALLOWED_DURATIONS:
         raise HTTPException(status_code=400, detail="ระยะเวลายืมไม่ถูกต้อง")
 
-    item = db.query(models.Item).filter(models.Item.id == item_id).first()
-    if not item:
+    # ล็อกแถวของ item ไว้จนจบ transaction — กันสองคนยืมชิ้นสุดท้ายพร้อมกัน
+    item = db.query(models.Item).filter(models.Item.id == item_id).with_for_update().first()
+    if not item or item.status == "retired":
         raise HTTPException(status_code=404, detail="ไม่พบสิ่งของนี้")
-    if item.status != "available":
-        raise HTTPException(status_code=400, detail="ของชิ้นนี้ไม่ว่างในขณะนี้")
+    if item.status == "repair":
+        raise HTTPException(status_code=400, detail="ของชิ้นนี้กำลังซ่อมแซม")
+    in_use = (
+        db.query(models.BorrowRecord)
+        .filter(models.BorrowRecord.item_id == item.id, models.BorrowRecord.status == "active")
+        .count()
+    )
+    if in_use >= item.quantity:
+        raise HTTPException(status_code=400, detail="ของชิ้นนี้ถูกยืมหมดแล้ว ลองใหม่ภายหลัง")
 
     now = datetime.utcnow()
     record = models.BorrowRecord(
@@ -75,7 +88,6 @@ def borrow_item(
         due_at=now + timedelta(hours=ALLOWED_DURATIONS[payload.duration_label]),
         status="active",
     )
-    item.status = "borrowed"
     db.add(record)
     log_activity(db, current_user.id, item.emoji, f"ยืม{item.name} {payload.duration_label}")
     db.commit()
@@ -117,7 +129,6 @@ def return_item(
     if payload:
         record.return_image = payload.image_data
         record.return_note = payload.note
-    record.item.status = "available"
 
     on_time = now <= record.due_at
     held_long_enough = (now - record.borrowed_at) >= MIN_BORROW_FOR_POINTS

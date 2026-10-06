@@ -428,6 +428,40 @@
   @media (min-width: 1200px){
     .item-grid{grid-template-columns:repeat(4,1fr);}
   }
+  /* ---------- Stock / นิติ ---------- */
+  .stock{margin-top:2px;}
+  .stock-bar{height:6px; border-radius:6px; background:var(--t-slate-bg) !important; overflow:hidden;}
+  .stock-bar span{display:block; height:100%; border-radius:6px; background:currentColor; transition:width .3s;}
+  .stock-text{font-size:12px; color:var(--ink-soft); margin-top:5px;}
+  .stock-text b{color:var(--ink); font-size:13.5px;}
+  .status-retired{background:var(--t-slate-bg); color:var(--t-slate-fg);}
+  .admin-tabs{margin:0 0 18px;}
+  .admin-tabs .chip{display:inline-flex; align-items:center; gap:6px;}
+  .admin-stats{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .stat-tile{display:flex; flex-direction:column; gap:6px; text-align:left; font-family:inherit; color:inherit;}
+  button.stat-tile{cursor:pointer; transition:border-color .15s, box-shadow .15s;}
+  button.stat-tile:hover{border-color:var(--border-strong); box-shadow:var(--shadow);}
+  .st-head{display:flex; align-items:center; gap:10px;}
+  .stat-tile{padding:12px 14px;}
+  .stat-tile .v{font-size:24px; line-height:1.1;}
+  .v-sub{font-size:12.5px; font-weight:500; color:var(--ink-soft); margin-left:2px;}
+  .admin-actions{display:grid; grid-template-columns:1fr; gap:10px; margin-top:16px;}
+  .admin-banner{width:100%; display:flex; align-items:center; gap:14px; padding:14px 16px; margin-top:12px; border-radius:var(--radius);
+    background:var(--ink); color:#fff; border:none; text-align:left; font-family:inherit;}
+  .admin-banner .qtitle{color:#fff; font-weight:600;} .admin-banner .qsub{color:rgba(255,255,255,.7); font-size:12.5px;}
+  .admin-banner .tile{background:rgba(255,255,255,.12); color:#5EEAD4;}
+  .form-2col{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .icon-picker{display:grid; grid-template-columns:repeat(6,1fr); gap:8px;}
+  .icon-opt{height:44px; border-radius:10px; border:1px solid var(--border-strong); background:var(--surface); color:var(--ink-2);
+    display:flex; align-items:center; justify-content:center;}
+  .icon-opt.active{border-color:var(--brand); background:var(--brand-50); color:var(--brand); box-shadow:var(--focus);}
+  .btn-sm{width:auto; height:34px; padding:0 12px; font-size:12.5px; align-self:center;}
+  .code-chip{font-family:ui-monospace, Menlo, Consolas, monospace; font-size:11.5px; font-weight:600; padding:1px 7px; border-radius:6px; background:var(--t-slate-bg); color:var(--ink-2); margin-left:4px;}
+  .user-row{align-items:center;}
+  @media (min-width: 960px){
+    .admin-stats{grid-template-columns:repeat(4,1fr);}
+    .admin-actions{grid-template-columns:1fr 1fr;}
+  }
   @media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important;} }
 </style>
 </head>
@@ -443,6 +477,7 @@
       <button class="nav-item" data-nav="deposit"><span class="nicon" data-icon="package"></span>ฝากของ</button>
       <button class="nav-item" data-nav="lostfound"><span class="nicon" data-icon="search"></span>ของหาย</button>
       <button class="nav-item" data-nav="profile"><span class="nicon" data-icon="user"></span>โปรไฟล์</button>
+      <button class="nav-item" data-nav="admin" id="navAdmin" style="display:none;"><span class="nicon" data-icon="shield"></span>นิติ</button>
     </div>
     <div class="nav-foot"><b>แบ่งปัน · ดูแล · ช่วยเหลือ</b>ทุกการช่วยเหลือเพื่อนในหอได้รับแต้มความดี</div>
   </nav>
@@ -525,7 +560,9 @@ function handleSessionExpired(){
 }
 
 /* ===================== STATE ===================== */
-let state = { page:"auth", filterCat:"ทั้งหมด", lfTab:"found", authMode:"login", authError:null, authLoading:false };
+let state = { page:"auth", filterCat:"ทั้งหมด", lfTab:"found", authMode:"login", authError:null, authLoading:false,
+  adminTab:"overview", adminBorrowFilter:"active", adminDepositFilter:"waiting" };
+let adminData = {};   // ข้อมูลหน้านิติ: overview, items, borrows, deposits, users
 
 /* ===================== HELPERS ===================== */
 function el(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; }
@@ -806,10 +843,12 @@ async function withBusy(btn, busyText, fn){
   }
 }
 
-function statusMeta(status){
-  if(status==="available") return {label:"ว่าง พร้อมให้ยืม", cls:"status-available"};
-  if(status==="borrowed") return {label:"ถูกยืมอยู่", cls:"status-borrowed"};
-  return {label:"กำลังซ่อมแซม", cls:"status-repair"};
+/** ป้ายสถานะจากจำนวนที่ว่างจริง (backend คำนวณ available_count ให้แล้ว) */
+function availMeta(i){
+  if(i.status==="repair") return {label:"กำลังซ่อมแซม", cls:"status-repair"};
+  if(i.status==="retired") return {label:"ปิดใช้งาน", cls:"status-retired"};
+  if(i.status==="borrowed" || !i.available_count) return {label:"ถูกยืมหมด", cls:"status-borrowed"};
+  return {label:`ว่าง ${i.available_count} ชิ้น`, cls:"status-available"};
 }
 
 /* ===================== DATA LOADING ===================== */
@@ -828,7 +867,8 @@ const pageLoaders = {
   home: async ()=>{ applySummary(await api('/summary/me')); },
   borrow: async ()=>{
     const [rawItems, rawBorrows] = await Promise.all([api('/items'), api('/borrow/me')]);
-    items = rawItems.map(i => ({ id:i.id, name:i.name, cat:i.category, emoji:i.emoji, status:i.status }));
+    items = rawItems.map(i => ({ id:i.id, name:i.name, cat:i.category, emoji:i.emoji, status:i.status,
+      quantity:i.quantity, available_count:i.available_count, borrowed_count:i.borrowed_count }));
     myBorrows = rawBorrows;
   },
   deposit: async ()=>{ depositsData = await api('/deposits/me'); },
@@ -840,6 +880,18 @@ const pageLoaders = {
   profile: async ()=>{
     const [s, a] = await Promise.all([api('/summary/me'), api('/activity/me')]);
     applySummary(s); activityData = a;
+  },
+  admin: async ()=>{
+    if(!user.isAdmin) return;
+    const tab = state.adminTab;
+    if(tab === 'overview'){
+      [adminData.overview, adminData.borrows] = await Promise.all([api('/admin/overview'), api('/admin/borrows?status=active')]);
+      state.adminBorrowFilter = 'active';
+    }
+    if(tab === 'items') adminData.items = await api('/admin/items');
+    if(tab === 'borrows') adminData.borrows = await api('/admin/borrows?status=' + state.adminBorrowFilter);
+    if(tab === 'deposits') adminData.deposits = await api('/admin/deposits?status=' + state.adminDepositFilter);
+    if(tab === 'users') adminData.users = await api('/admin/users');
   },
   notifications: async ()=>{
     notificationsData = await api('/notifications');
@@ -955,6 +1007,12 @@ function pageHome(){
       </div>
     </div>
 
+    ${user.isAdmin ? `<button class="admin-banner" data-nav="admin">
+        ${tile('shield', null, 44)}
+        <div style="flex:1; text-align:left;"><div class="qtitle">แผงควบคุมนิติบุคคล</div><div class="qsub">จัดการคลังของ การยืม ฝากของ ผู้พัก และส่งประกาศ</div></div>
+        ${ico('chevron', 20)}
+      </button>` : ''}
+
     <div class="section-title">กิจกรรมล่าสุด</div>
     ${recentActivity.length===0
       ? emptyState("sparkles","ยังไม่มีกิจกรรม","เริ่มยืมของ ฝากของ หรือช่วยเพื่อนตามหาของหายได้เลย")
@@ -996,14 +1054,14 @@ function pageBorrow(){
     </div>
     <div class="item-grid">
       ${filtered.map(i=>{
-        const s = statusMeta(i.status);
+        const s = availMeta(i);
         const tone = itemTone(i);
         return `<button class="item-card" data-item="${i.id}" data-name="${esc(i.name.toLowerCase())}">
           <div class="item-img t-${tone}"><div class="ring">${ico(itemIcon(i), 28, 1.7)}</div></div>
           <div class="item-body">
             <div class="item-name">${esc(i.name)}</div>
             <div class="item-cat">${esc(i.cat)}</div>
-            <span class="status-badge ${s.cls}">${s.label}</span>
+            ${i.status === 'repair' ? `<span class="status-badge ${s.cls}">${s.label}</span>` : stockMeter(i)}
           </div>
         </button>`;
       }).join("")}
@@ -1014,19 +1072,22 @@ function pageBorrow(){
 }
 
 function itemModal(item){
-  const s = statusMeta(item.status);
+  const s = availMeta(item);
   const head = modalHead(itemIcon(item), esc(item.name), itemTone(item));
+  const stock = `<dl class="detail-list">
+      <div><dt>หมวดหมู่</dt><dd>${esc(item.cat)}</dd></div>
+      <div><dt>จำนวนทั้งหมด</dt><dd>${item.quantity} ชิ้น</dd></div>
+      <div><dt>ถูกยืมอยู่</dt><dd>${item.borrowed_count} ชิ้น</dd></div>
+      <div><dt>ว่างตอนนี้</dt><dd><span class="status-badge ${s.cls}">${s.label}</span></dd></div>
+    </dl>`;
   if(item.status !== "available"){
-    return head + `
-      <span class="status-badge ${s.cls}">${s.label}</span>
-      <p class="modal-text" style="margin-top:12px;">ขณะนี้สิ่งของชิ้นนี้ยังไม่ว่าง กรุณาลองใหม่ภายหลัง หรือดูรายการอื่นที่พร้อมให้ยืม</p>
+    return head + stock + `
+      <p class="modal-text">${item.status === 'repair'
+        ? 'ของชิ้นนี้กำลังซ่อมแซม ยังยืมไม่ได้ในขณะนี้'
+        : 'ตอนนี้ถูกยืมครบทุกชิ้นแล้ว ลองใหม่ภายหลัง หรือดูรายการอื่นที่พร้อมให้ยืม'}</p>
       <button class="btn-ghost" data-close="1">ปิด</button>`;
   }
-  return head + `
-    <dl class="detail-list">
-      <div><dt>หมวดหมู่</dt><dd>${esc(item.cat)}</dd></div>
-      <div><dt>สถานะ</dt><dd><span class="status-badge ${s.cls}">${s.label}</span></dd></div>
-    </dl>
+  return head + stock + `
     <div class="field">
       <label>เลือกระยะเวลาที่ต้องการยืม</label>
       <div class="duration-grid" id="durGrid">
@@ -1299,6 +1360,206 @@ function pageNotifications(){
   `;
 }
 
+/* ===================== นิติบุคคล (ADMIN) ===================== */
+const ADMIN_TABS = [
+  ['overview', 'home', 'ภาพรวม'],
+  ['items', 'archive', 'คลังของ'],
+  ['borrows', 'repeat', 'การยืม'],
+  ['deposits', 'package', 'ฝากของ'],
+  ['users', 'user', 'ผู้พัก'],
+];
+// ไอคอนที่นิติเลือกให้ของได้ (เก็บเป็นอีโมจิในฐานข้อมูลเหมือนเดิม แสดงผลเป็นไอคอนเส้น)
+const ITEM_ICON_CHOICES = ['📦','☂️','🧹','🔧','🔨','🎲','🔌','💻','📚','🔑','🎧','🥤'];
+const ITEM_STATUS_LABEL = { available:'เปิดให้ยืม', repair:'กำลังซ่อมแซม', retired:'ปิดใช้งาน' };
+
+function adminTabs(){
+  return `<div class="filter-chips admin-tabs">
+    ${ADMIN_TABS.map(([k, icon, label]) => `<button class="chip ${state.adminTab===k?'active':''}" data-admintab="${k}">${ico(icon, 15)}${label}</button>`).join('')}
+  </div>`;
+}
+
+function statTile(icon, tone, label, value, sub, nav){
+  return `<${nav ? `button data-admintab="${nav}"` : 'div'} class="stat stat-tile">
+    <div class="st-head">${tile(icon, tone, 32)}<div class="k">${label}</div></div>
+    <div class="v">${value}${sub ? `<span class="v-sub">${sub}</span>` : ''}</div>
+  </${nav ? 'button' : 'div'}>`;
+}
+
+function adminBorrowRow(r){
+  const icon = iconFor(r.item_emoji, r.item_name);
+  return `<div class="list-row ${r.overdue ? 'danger' : ''}">
+    ${tile(icon, r.overdue ? 'rose' : 'sky', 44)}
+    <div class="row-main">
+      <div class="row-title">${esc(r.item_name)}</div>
+      <div class="row-sub">ห้อง <b>${esc(r.borrower_username)}</b>${r.borrower_name ? ' · ' + esc(r.borrower_name) : ''}</div>
+      <div class="row-meta">${ico('clock', 13)}${r.status === 'active'
+        ? `ยืม ${esc(r.duration_label)} · กำหนดคืน ${fmtDateTime(r.due_at)}`
+        : `คืนเมื่อ ${fmtDateTime(r.returned_at)}${r.return_note ? ' · ' + esc(r.return_note) : ''}`}</div>
+      ${r.overdue ? pill(`${ico('alert', 12, 2.2)}เลยกำหนดคืน`, 'rose') : ''}
+      ${r.status === 'returned' ? pill('คืนแล้ว', 'green') : ''}
+      ${r.status === 'active' ? `<div><button class="btn-secondary btn-inline" data-do="admin-return" data-id="${r.id}" data-name="${esc(r.item_name)}" data-who="${esc(r.borrower_username)}">${ico('check', 16, 2.2)}บันทึกรับคืน</button></div>` : ''}
+    </div>
+  </div>`;
+}
+
+function adminOverview(){
+  const o = adminData.overview;
+  if(!o) return loadingState();
+  const urgent = (adminData.borrows || []).filter(r => r.overdue || parseDate(r.due_at) - Date.now() < 2*3600*1000);
+  return `
+    <div class="admin-stats">
+      ${statTile('archive', 'teal', 'ของว่างให้ยืม', o.units_available, ` / ${o.units_total} ชิ้น`, 'items')}
+      ${statTile('repeat', 'sky', 'กำลังถูกยืม', o.active_borrows, ' รายการ', 'borrows')}
+      ${statTile('alert', o.overdue_borrows ? 'rose' : 'slate', 'เลยกำหนดคืน', o.overdue_borrows, ' รายการ', 'borrows')}
+      ${statTile('wrench', 'amber', 'กำลังซ่อมแซม', o.items_in_repair, ' รายการ', 'items')}
+      ${statTile('package', 'teal', 'ฝากของรอรับ', o.deposits_waiting, ' รายการ', 'deposits')}
+      ${statTile('gift', 'violet', 'ของที่เก็บได้', o.found_open, ' ชิ้น')}
+      ${statTile('megaphone', 'rose', 'ตามหาของหาย', o.lost_open, ' ประกาศ')}
+      ${statTile('user', 'slate', 'ผู้พักอาศัย', o.residents, ' ห้อง', 'users')}
+    </div>
+    <div class="admin-actions">
+      <button class="btn-primary" data-do="admin-announce">${ico('megaphone', 18)}ส่งประกาศถึงทุกห้อง</button>
+      <button class="btn-ghost" data-do="admin-new-item">${ico('plus', 18, 2.2)}เพิ่มของส่วนกลาง</button>
+    </div>
+    <div class="section-title">${ico('clock', 18)}ต้องติดตาม <span class="count">${urgent.length}</span></div>
+    ${urgent.length === 0
+      ? emptyState('checkCircle', 'ไม่มีรายการที่ต้องติดตาม', 'ไม่มีของที่เลยกำหนดหรือใกล้ครบกำหนดคืนใน 2 ชม.', 'green')
+      : urgent.map(adminBorrowRow).join('')}
+  `;
+}
+
+function stockMeter(i){
+  const pct = i.quantity ? Math.round(i.available_count / i.quantity * 100) : 0;
+  const tone = i.status === 'repair' || i.status === 'retired' ? 'slate' : pct === 0 ? 'rose' : pct <= 34 ? 'amber' : 'green';
+  return `<div class="stock">
+    <div class="stock-bar t-${tone}"><span style="width:${i.status === 'available' || i.status === 'borrowed' ? pct : 0}%"></span></div>
+    <div class="stock-text"><b>${i.available_count}</b> / ${i.quantity} ชิ้นว่าง</div>
+  </div>`;
+}
+
+function adminItems(){
+  const list = adminData.items;
+  if(!list) return loadingState();
+  return `
+    <button class="btn-primary" data-do="admin-new-item" style="margin-bottom:16px;">${ico('plus', 18, 2.2)}เพิ่มของส่วนกลาง</button>
+    ${list.length === 0 ? emptyState('archive', 'ยังไม่มีของส่วนกลาง', 'เพิ่มของชิ้นแรกให้ผู้พักยืมได้เลย') : ''}
+    ${list.map(i => {
+      const tone = i.status === 'retired' ? 'slate' : (CATEGORY_TONE[i.category] || 'teal');
+      const s = availMeta(i);
+      return `<div class="list-row clickable" data-do="admin-edit-item" data-id="${i.id}" ${i.status==='retired' ? 'style="opacity:.65"' : ''}>
+        ${tile(iconFor(i.emoji, i.name), tone, 48)}
+        <div class="row-main">
+          <div class="row-title">${esc(i.name)}</div>
+          <div class="row-meta" style="margin:0 0 6px;">${esc(i.category)} · ถูกยืมอยู่ ${i.borrowed_count} ชิ้น</div>
+          ${stockMeter(i)}
+          <span class="status-badge ${s.cls}" style="margin-top:8px;">${s.label}</span>
+        </div>
+        <span style="color:var(--ink-soft); align-self:center;">${ico('pen', 17)}</span>
+      </div>`;
+    }).join('')}
+  `;
+}
+
+function itemFormModal(i){
+  const editing = !!i;
+  const cur = i || { name:'', category:'อื่นๆ', emoji:'📦', quantity:1, status:'available', borrowed_count:0 };
+  const rawStatus = cur.status === 'borrowed' ? 'available' : cur.status;
+  return modalHead(editing ? 'pen' : 'plus', editing ? 'แก้ไขของส่วนกลาง' : 'เพิ่มของส่วนกลาง', 'teal') + `
+    <div class="field"><label for="itName">ชื่อสิ่งของ</label><input id="itName" type="text" maxlength="100" placeholder="เช่น ร่มกันฝน" value="${esc(cur.name)}"></div>
+    <div class="form-2col">
+      <div class="field"><label for="itCat">หมวดหมู่</label>
+        <select id="itCat">${categories.filter(c => c !== 'ทั้งหมด').map(c => `<option ${c===cur.category?'selected':''}>${c}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label for="itQty">จำนวนทั้งหมด (ชิ้น)</label>
+        <input id="itQty" type="number" inputmode="numeric" min="${Math.max(1, cur.borrowed_count)}" max="999" value="${cur.quantity}">
+      </div>
+    </div>
+    ${editing && cur.borrowed_count ? `<p class="modal-text" style="margin-top:-6px;">ตอนนี้ถูกยืมอยู่ ${cur.borrowed_count} ชิ้น — ตั้งจำนวนทั้งหมดน้อยกว่านี้ไม่ได้</p>` : ''}
+    <div class="field"><label>ไอคอน</label>
+      <div class="icon-picker" id="itIcon" data-value="${esc(cur.emoji)}">
+        ${ITEM_ICON_CHOICES.map(e => `<button type="button" class="icon-opt ${emojiIcon(e)===emojiIcon(cur.emoji)?'active':''}" data-pick="${e}">${ico(emojiIcon(e), 20)}</button>`).join('')}
+      </div>
+    </div>
+    ${editing ? `<div class="field"><label for="itStatus">สถานะ</label>
+      <select id="itStatus">${Object.entries(ITEM_STATUS_LABEL).map(([k, v]) => `<option value="${k}" ${k===rawStatus?'selected':''}>${v}</option>`).join('')}</select>
+    </div>` : ''}
+    <button class="btn-primary" data-do="admin-save-item" ${editing ? `data-id="${cur.id}"` : ''}>${editing ? 'บันทึกการแก้ไข' : 'เพิ่มของ'}</button>
+    ${editing ? `<button class="btn-danger" style="margin-top:10px;" data-do="admin-delete-item" data-id="${cur.id}" data-name="${esc(cur.name)}">${ico('x', 16)}ลบรายการนี้</button>` : ''}`;
+}
+
+function adminBorrows(){
+  const list = adminData.borrows;
+  const f = state.adminBorrowFilter;
+  return `
+    <div class="tabbar">
+      <button class="tabbtn ${f==='active'?'active':''}" data-afilter="borrow:active">กำลังยืม</button>
+      <button class="tabbtn ${f==='returned'?'active':''}" data-afilter="borrow:returned">คืนแล้ว</button>
+    </div>
+    ${!list ? loadingState()
+      : list.length === 0 ? emptyState('repeat', f==='active' ? 'ไม่มีของที่ถูกยืมอยู่' : 'ยังไม่มีประวัติการคืน', 'รายการจะแสดงที่นี่')
+      : list.map(adminBorrowRow).join('')}
+  `;
+}
+
+function adminDeposits(){
+  const list = adminData.deposits;
+  const f = state.adminDepositFilter;
+  return `
+    <div class="tabbar">
+      <button class="tabbtn ${f==='waiting'?'active':''}" data-afilter="deposit:waiting">รอรับ</button>
+      <button class="tabbtn ${f==='all'?'active':''}" data-afilter="deposit:all">ทั้งหมด</button>
+    </div>
+    ${!list ? loadingState()
+      : list.length === 0 ? emptyState('package', 'ไม่มีรายการฝากของ', 'รายการฝากของระหว่างห้องจะแสดงที่นี่')
+      : list.map(d => {
+        const [label, tone] = DEPOSIT_STATUS[d.status] || DEPOSIT_STATUS.waiting;
+        return `<div class="list-row">
+          ${tile(iconFor(null, d.item_name, 'package'), 'teal', 44)}
+          <div class="row-main">
+            <div class="row-title">${esc(d.item_name)} <span class="code-chip">${esc(d.code)}</span></div>
+            <div class="row-sub">ห้อง <b>${esc(d.depositor_username)}</b> ${ico('chevron', 13)} ห้อง <b>${esc(d.recipient_username)}</b>${d.note ? ' · ' + esc(d.note) : ''}</div>
+            <div class="row-meta">${ico('clock', 13)}${d.eta ? 'นัดรับ ' + esc(d.eta) + ' · ' : ''}สร้าง ${timeAgo(d.created_at)}${d.collected_at ? ' · รับแล้ว ' + fmtDateTime(d.collected_at) : ''}</div>
+            ${pill(label, tone)}
+          </div>
+        </div>`;
+      }).join('')}
+  `;
+}
+
+function adminUsers(){
+  const list = adminData.users;
+  if(!list) return loadingState();
+  return `
+    <div class="search-row"><div class="search-box">${ico('search', 18)}<input type="text" id="adminUserSearch" placeholder="ค้นหาห้อง หรือชื่อ..." aria-label="ค้นหาผู้พัก"></div></div>
+    ${list.map(u => `
+      <div class="list-row user-row" data-q="${esc((u.username + ' ' + (u.full_name || '')).toLowerCase())}" ${u.is_active ? '' : 'style="opacity:.7"'}>
+        <div class="avatar" style="width:44px;height:44px;font-size:14px;${u.is_active ? '' : 'background:var(--ink-soft);'}">${esc(initials(u.full_name || u.username))}</div>
+        <div class="row-main">
+          <div class="row-title">ห้อง ${esc(u.username)}${u.full_name ? ` <span style="font-weight:400;color:var(--ink-soft);">· ${esc(u.full_name)}</span>` : ''}</div>
+          <div class="row-meta">${ico('star', 13)}${u.points} แต้ม · ยืมอยู่ ${u.active_borrows} ชิ้น · สมัคร ${parseDate(u.created_at).toLocaleDateString('th-TH', {dateStyle:'medium'})}</div>
+          ${u.is_admin ? pill(`${ico('shield', 12)}นิติบุคคล`, 'teal') : ''}
+          ${u.is_active ? '' : pill('ปิดใช้งาน', 'slate')}
+        </div>
+        ${u.username === user.room ? '' : `<button class="btn-ghost btn-sm" data-do="admin-toggle-user" data-id="${u.id}" data-active="${u.is_active ? '0' : '1'}" data-name="${esc(u.username)}">${u.is_active ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}</button>`}
+      </div>`).join('')}
+    <div id="userSearchEmpty" style="display:none;">${emptyState('search', 'ไม่พบผู้พัก', 'ลองค้นหาด้วยคำอื่น')}</div>
+  `;
+}
+
+function pageAdmin(){
+  if(!user.isAdmin) return topbar('แผงควบคุมนิติ') + emptyState('shield', 'เฉพาะเจ้าหน้าที่นิติบุคคล', 'บัญชีนี้ไม่มีสิทธิ์เข้าหน้านี้', 'slate');
+  const body = { overview: adminOverview, items: adminItems, borrows: adminBorrows, deposits: adminDeposits, users: adminUsers }[state.adminTab] || adminOverview;
+  return topbar('แผงควบคุมนิติ') + adminTabs() + body();
+}
+
+function announceModal(){
+  return modalHead('megaphone', 'ส่งประกาศถึงทุกห้อง', 'violet') + `
+    <div class="field"><label for="anTitle">หัวข้อ</label><input id="anTitle" type="text" maxlength="120" placeholder="เช่น ปิดน้ำชั่วคราว 10:00–12:00 น."></div>
+    <div class="field"><label for="anBody">รายละเอียด (ถ้ามี)</label><textarea id="anBody" maxlength="300" placeholder="เช่น ซ่อมท่อประปาชั้น 2 ขออภัยในความไม่สะดวก"></textarea></div>
+    ${infoBox('bell', 'ผู้พักทุกห้องจะได้รับการแจ้งเตือนทันทีที่กระดิ่งในแอป', 'sky')}
+    <button class="btn-primary" data-do="admin-send-announce">${ico('send', 17)}ส่งประกาศ</button>`;
+}
+
 /* ===================== MAIN RENDER ===================== */
 function render(){
   const content = document.getElementById('content');
@@ -1313,12 +1574,13 @@ function render(){
     content.style.paddingBottom = "110px";
     const pages = {
       home: pageHome, borrow: pageBorrow, deposit: pageDeposit,
-      lostfound: pageLostFound, profile: pageProfile, notifications: pageNotifications
+      lostfound: pageLostFound, profile: pageProfile, notifications: pageNotifications, admin: pageAdmin
     };
     content.innerHTML = pages[state.page] ? pages[state.page]() : pageHome();
     document.querySelectorAll('.nav-item').forEach(b=>{
       b.classList.toggle('active', b.dataset.nav === state.page);
     });
+    document.getElementById('navAdmin').style.display = user.isAdmin ? '' : 'none';
   }
 }
 
@@ -1331,6 +1593,7 @@ async function completeLogin(){
   const me = await api('/me');
   user.room = me.username;
   user.name = me.full_name || '';
+  user.isAdmin = !!me.is_admin;
   goto('home');
 }
 
@@ -1338,12 +1601,13 @@ function resetAppData(){
   items = []; myBorrows = []; depositsData = []; foundData = []; lostData = [];
   incomingClaims = []; leaderboardData = []; notificationsData = []; activityData = [];
   recentActivity = []; unreadCount = 0; loading = {};
-  user.name = ''; user.room = ''; user.points = 0;
+  user.name = ''; user.room = ''; user.points = 0; user.isAdmin = false;
+  adminData = {}; state.adminTab = 'overview';
 }
 
 /* ===================== EVENTS (delegated) ===================== */
 document.body.addEventListener('click', async (e)=>{
-  const t = e.target.closest('[data-nav], [data-back], [data-authmode], [data-do], [data-cat], [data-item], [data-close], [data-lftab], [data-dur], [data-upload], [data-deposit], [data-return], [data-claim]');
+  const t = e.target.closest('[data-nav], [data-back], [data-authmode], [data-do], [data-cat], [data-item], [data-close], [data-lftab], [data-dur], [data-upload], [data-deposit], [data-return], [data-claim], [data-admintab], [data-afilter], [data-pick]');
   if(!t || t.disabled) return;
 
   if(t.dataset.nav){ goto(t.dataset.nav); return; }
@@ -1351,6 +1615,25 @@ document.body.addEventListener('click', async (e)=>{
   if(t.dataset.authmode){ state.authMode = t.dataset.authmode; state.authError = null; render(); return; }
   if(t.dataset.cat){ state.filterCat = t.dataset.cat; render(); return; }
   if(t.dataset.lftab){ state.lfTab = t.dataset.lftab; render(); return; }
+  if(t.dataset.admintab){
+    state.adminTab = t.dataset.admintab;
+    if(t.dataset.admintab === 'borrows') adminData.borrows = null;
+    if(state.page !== 'admin') goto('admin'); else { render(); loadPage('admin'); }
+    return;
+  }
+  if(t.dataset.afilter){
+    const [kind, value] = t.dataset.afilter.split(':');
+    if(kind === 'borrow'){ state.adminBorrowFilter = value; adminData.borrows = null; }
+    if(kind === 'deposit'){ state.adminDepositFilter = value; adminData.deposits = null; }
+    render(); loadPage('admin');
+    return;
+  }
+  if(t.dataset.pick){
+    const box = document.getElementById('itIcon');
+    box.dataset.value = t.dataset.pick;
+    box.querySelectorAll('.icon-opt').forEach(b => b.classList.toggle('active', b === t));
+    return;
+  }
   if(t.dataset.close !== undefined){ closeModal(); return; }
   if(t.dataset.dur){
     document.querySelectorAll('.duration-opt').forEach(d=>d.classList.remove('active'));
@@ -1541,6 +1824,68 @@ document.body.addEventListener('click', async (e)=>{
         loadPage('lostfound');
       });
       break;
+    /* ---------- นิติบุคคล ---------- */
+    case 'admin-new-item': openModal(itemFormModal(null)); break;
+    case 'admin-edit-item': {
+      const it = (adminData.items || []).find(x => x.id == id);
+      if(it) openModal(itemFormModal(it));
+      break;
+    }
+    case 'admin-save-item': {
+      const name = val('itName');
+      const quantity = parseInt(val('itQty'), 10);
+      if(!name){ showToast('กรอกชื่อสิ่งของ', '⚠️'); break; }
+      if(!(quantity >= 1 && quantity <= 999)){ showToast('จำนวนต้องอยู่ระหว่าง 1–999 ชิ้น', '⚠️'); break; }
+      const body = { name, quantity, category: val('itCat'), emoji: document.getElementById('itIcon').dataset.value || '📦' };
+      const statusEl = document.getElementById('itStatus');
+      if(statusEl) body.status = statusEl.value;
+      await withBusy(t, 'กำลังบันทึก...', async ()=>{
+        await api(id ? `/admin/items/${id}` : '/admin/items', { method: id ? 'PUT' : 'POST', body });
+        closeModal();
+        showToast(id ? 'บันทึกการแก้ไขแล้ว' : `เพิ่ม ${name} แล้ว`);
+        state.adminTab = 'items';
+        if(state.page !== 'admin') goto('admin'); else { render(); loadPage('admin'); }
+      });
+      break;
+    }
+    case 'admin-delete-item':
+      if(!confirm(`ลบ "${t.dataset.name}" ออกจากระบบ?`)) break;
+      await withBusy(t, 'กำลังลบ...', async ()=>{
+        await api(`/admin/items/${id}`, { method:'DELETE' });
+        closeModal(); showToast('ลบรายการแล้ว');
+        loadPage('admin');
+      });
+      break;
+    case 'admin-return':
+      if(!confirm(`บันทึกว่าได้รับ "${t.dataset.name}" คืนจากห้อง ${t.dataset.who} แล้ว?`)) break;
+      await withBusy(t, 'กำลังบันทึก...', async ()=>{
+        await api(`/admin/borrows/${id}/return`, { method:'POST' });
+        showToast('บันทึกรับคืนแล้ว');
+        loadPage('admin');
+      });
+      break;
+    case 'admin-toggle-user': {
+      const enable = t.dataset.active === '1';
+      if(!confirm(`${enable ? 'เปิด' : 'ปิด'}ใช้งานบัญชีห้อง ${t.dataset.name}?`)) break;
+      await withBusy(t, '...', async ()=>{
+        const res = await api(`/admin/users/${id}/active`, { method:'POST', body:{ is_active: enable } });
+        showToast(res.message);
+        loadPage('admin');
+      });
+      break;
+    }
+    case 'admin-announce': openModal(announceModal()); break;
+    case 'admin-send-announce': {
+      const title = val('anTitle');
+      if(!title){ showToast('กรอกหัวข้อประกาศ', '⚠️'); break; }
+      await withBusy(t, 'กำลังส่ง...', async ()=>{
+        const res = await api('/admin/announcements', { method:'POST', body:{ title, body: val('anBody') || null } });
+        closeModal();
+        showToast(`ส่งประกาศถึง ${res.sent} ห้องแล้ว`);
+      });
+      break;
+    }
+
     case 'resolve-lost':
       await withBusy(t, 'กำลังปิดประกาศ...', async ()=>{
         await api(`/lost/${id}/resolve`, { method:'POST' });
@@ -1570,6 +1915,17 @@ document.body.addEventListener('change', async (e)=>{
 
 /* ค้นหาของส่วนกลาง: กรองการ์ดในหน้าทันทีโดยไม่ re-render (ช่องค้นหาจะได้ไม่หลุดโฟกัส) */
 document.body.addEventListener('input', (e)=>{
+  if(e.target.id === 'adminUserSearch'){
+    const q = e.target.value.trim().toLowerCase();
+    let shown = 0;
+    document.querySelectorAll('.user-row').forEach(r => {
+      const match = !q || r.dataset.q.includes(q);
+      r.style.display = match ? '' : 'none';
+      if(match) shown++;
+    });
+    document.getElementById('userSearchEmpty').style.display = (q && shown===0) ? '' : 'none';
+    return;
+  }
   if(e.target.id !== 'searchInput') return;
   const q = e.target.value.trim().toLowerCase();
   let shown = 0;

@@ -47,6 +47,7 @@ class UserOut(BaseModel):
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
     is_active: bool
+    is_admin: bool = False
     created_at: datetime
 
     class Config:
@@ -75,10 +76,29 @@ class MessageResponse(BaseModel):
 
 
 # ---------- Items / Borrowing ----------
+ITEM_STATUSES = ("available", "repair", "retired")
+
+
 class ItemCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     category: str = Field(default="อื่นๆ", max_length=50)
     emoji: str = Field(default="📦", max_length=10)
+    quantity: int = Field(default=1, ge=1, le=999)
+
+
+class ItemUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    category: Optional[str] = Field(default=None, max_length=50)
+    emoji: Optional[str] = Field(default=None, max_length=10)
+    quantity: Optional[int] = Field(default=None, ge=1, le=999)
+    status: Optional[str] = Field(default=None, description="available | repair | retired")
+
+    @field_validator("status")
+    @classmethod
+    def _status_ok(cls, v):
+        if v is not None and v not in ITEM_STATUSES:
+            raise ValueError("สถานะต้องเป็น available, repair หรือ retired")
+        return v
 
 
 class ItemOut(BaseModel):
@@ -86,7 +106,10 @@ class ItemOut(BaseModel):
     name: str
     category: str
     emoji: str
-    status: str
+    status: str  # available | borrowed (ถูกยืมหมด) | repair | retired
+    quantity: int = 1
+    borrowed_count: int = 0
+    available_count: int = 0
     created_at: datetime
 
     class Config:
@@ -255,3 +278,72 @@ class HomeSummary(BaseModel):
     points: int
     unread_notifications: int
     recent_activity: List[ActivityOut]
+
+
+# ---------- นิติบุคคล (Admin) ----------
+class AdminOverview(BaseModel):
+    residents: int
+    item_types: int
+    units_total: int
+    units_borrowed: int
+    units_available: int
+    items_in_repair: int
+    active_borrows: int
+    overdue_borrows: int
+    deposits_waiting: int
+    found_open: int
+    lost_open: int
+
+
+class AdminBorrowOut(BaseModel):
+    id: int
+    item_id: int
+    item_name: str
+    item_emoji: str
+    borrower_username: str
+    borrower_name: Optional[str] = None
+    duration_label: str
+    borrowed_at: datetime
+    due_at: datetime
+    returned_at: Optional[datetime] = None
+    status: str
+    overdue: bool
+    return_note: Optional[str] = None
+
+
+class AdminDepositOut(BaseModel):
+    id: int
+    code: str
+    item_name: str
+    depositor_username: str
+    recipient_username: str
+    eta: Optional[str] = None
+    note: Optional[str] = None
+    status: str
+    created_at: datetime
+    collected_at: Optional[datetime] = None
+
+
+class AdminUserOut(BaseModel):
+    id: int
+    username: str
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    is_active: bool
+    is_admin: bool
+    points: int
+    active_borrows: int
+    created_at: datetime
+
+
+class SetActiveRequest(BaseModel):
+    is_active: bool
+
+
+class AnnouncementRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=150)
+    body: Optional[str] = Field(default=None, max_length=300)
+
+
+class AnnouncementResult(BaseModel):
+    sent: int
