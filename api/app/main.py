@@ -7,7 +7,7 @@ from sqlalchemy import inspect, text
 
 from . import models
 from .database import Base, SessionLocal, engine
-from .routers import admin, auth, community, deposits, items, lostfound, users
+from .routers import admin, auth, community, deposits, items, lostfound, scan, users
 from .security import hash_password
 
 # สร้างตารางในฐานข้อมูลอัตโนมัติตอน service เริ่มทำงาน (เหมาะกับ dev/demo)
@@ -117,6 +117,7 @@ app.include_router(deposits.router)
 app.include_router(lostfound.router)
 app.include_router(community.router)
 app.include_router(admin.router)
+app.include_router(scan.router)
 
 
 @app.get("/health", tags=["Health"])

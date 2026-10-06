@@ -12,8 +12,10 @@ from ..services import (
     POINTS_RETURN_ON_TIME,
     award_points,
     borrowed_counts,
+    check_badges,
     item_availability,
     log_activity,
+    notify_waitlist,
 )
 
 router = APIRouter(tags=["Borrowing"])
@@ -22,7 +24,24 @@ router = APIRouter(tags=["Borrowing"])
 ALLOWED_DURATIONS = {"1 ชม.": 1, "1 วัน": 24, "3 วัน": 72}
 
 
-def item_out(item: models.Item, borrowed: int) -> schemas.ItemOut:
+def waitlist_info(db: Session, user_id: int) -> tuple[dict[int, int], dict[int, int]]:
+    """(จำนวนคนรอของแต่ละ item, คิวที่เท่าไหร่ของฉันในแต่ละ item)"""
+    rows = (
+        db.query(models.ItemWaitlist.item_id, models.ItemWaitlist.user_id)
+        .filter(models.ItemWaitlist.status == "waiting")
+        .order_by(models.ItemWaitlist.created_at)
+        .all()
+    )
+    counts: dict[int, int] = {}
+    mine: dict[int, int] = {}
+    for item_id, uid in rows:
+        counts[item_id] = counts.get(item_id, 0) + 1
+        if uid == user_id:
+            mine[item_id] = counts[item_id]
+    return counts, mine
+
+
+def item_out(item: models.Item, borrowed: int, waiting: int = 0, my_pos=None) -> schemas.ItemOut:
     available, shown_status = item_availability(item, borrowed)
     return schemas.ItemOut(
         id=item.id,
@@ -33,6 +52,8 @@ def item_out(item: models.Item, borrowed: int) -> schemas.ItemOut:
         quantity=item.quantity,
         borrowed_count=borrowed,
         available_count=available,
+        waitlist_count=waiting,
+        my_queue_position=my_pos,
         created_at=item.created_at,
     )
 
@@ -49,7 +70,11 @@ def list_items(
     if category and category != "ทั้งหมด":
         query = query.filter(models.Item.category == category)
     counts = borrowed_counts(db)
-    result = [item_out(i, counts.get(i.id, 0)) for i in query.order_by(models.Item.id).all()]
+    waits, mine = waitlist_info(db, current_user.id)
+    result = [
+        item_out(i, counts.get(i.id, 0), waits.get(i.id, 0), mine.get(i.id))
+        for i in query.order_by(models.Item.id).all()
+    ]
     if status_filter:
         result = [i for i in result if i.status == status_filter]
     return result
@@ -89,7 +114,15 @@ def borrow_item(
         status="active",
     )
     db.add(record)
+    # ยืมได้แล้ว = ออกจากคิวของชิ้นนี้
+    for w in db.query(models.ItemWaitlist).filter(
+        models.ItemWaitlist.item_id == item.id,
+        models.ItemWaitlist.user_id == current_user.id,
+        models.ItemWaitlist.status.in_(["waiting", "notified"]),
+    ):
+        w.status = "done"
     log_activity(db, current_user.id, item.emoji, f"ยืม{item.name} {payload.duration_label}")
+    check_badges(db, current_user.id)
     db.commit()
     db.refresh(record)
     return record
@@ -141,8 +174,53 @@ def return_item(
     else:
         log_activity(db, current_user.id, record.item.emoji, f"คืน{record.item.name} (เลยกำหนด)")
 
+    notify_waitlist(db, record.item)
+    check_badges(db, current_user.id)
     db.commit()
     db.refresh(record)
     result = schemas.BorrowRecordOut.model_validate(record)
     result.points_awarded = POINTS_RETURN_ON_TIME if earns_points else 0
     return result
+
+
+# ---------------------------------------------------------------------------
+# คิวรอของว่าง
+# ---------------------------------------------------------------------------
+@router.post("/items/{item_id}/waitlist", response_model=schemas.WaitlistOut, status_code=status.HTTP_201_CREATED)
+def join_waitlist(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    item = db.query(models.Item).filter(models.Item.id == item_id).first()
+    if not item or item.status == "retired":
+        raise HTTPException(status_code=404, detail="ไม่พบสิ่งของนี้")
+    _, available_status = item_availability(item, borrowed_counts(db).get(item.id, 0))
+    if available_status == "available":
+        raise HTTPException(status_code=400, detail="ของชิ้นนี้ยังว่างอยู่ กดยืมได้เลย")
+    exists = db.query(models.ItemWaitlist).filter(
+        models.ItemWaitlist.item_id == item.id,
+        models.ItemWaitlist.user_id == current_user.id,
+        models.ItemWaitlist.status == "waiting",
+    ).first()
+    if not exists:
+        db.add(models.ItemWaitlist(item_id=item.id, user_id=current_user.id))
+        db.commit()
+    waits, mine = waitlist_info(db, current_user.id)
+    return schemas.WaitlistOut(item_id=item.id, position=mine[item.id], waitlist_count=waits[item.id])
+
+
+@router.delete("/items/{item_id}/waitlist", status_code=status.HTTP_204_NO_CONTENT)
+def leave_waitlist(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    for w in db.query(models.ItemWaitlist).filter(
+        models.ItemWaitlist.item_id == item_id,
+        models.ItemWaitlist.user_id == current_user.id,
+        models.ItemWaitlist.status == "waiting",
+    ):
+        w.status = "cancelled"
+    db.commit()
+    return None

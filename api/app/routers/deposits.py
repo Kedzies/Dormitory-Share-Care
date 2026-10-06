@@ -121,6 +121,14 @@ def collect_deposit(
     if d.status != "waiting":
         raise HTTPException(status_code=400, detail="รายการนี้ไม่ได้อยู่ในสถานะรอรับแล้ว")
 
+    mark_collected(db, d, notify_depositor=is_recipient)
+    db.commit()
+    db.refresh(d)
+    return _to_out(db, d, current_user)
+
+
+def mark_collected(db: Session, d: models.Deposit, notify_depositor: bool) -> None:
+    """ปิดรายการฝากว่าส่งถึงมือแล้ว + ให้แต้มผู้ฝาก (ไม่ commit)"""
     d.status = "collected"
     d.collected_at = datetime.utcnow()
 
@@ -130,12 +138,10 @@ def collect_deposit(
     recipient_user = find_user_by_username(db, d.recipient_username)
     if recipient_user:
         log_activity(db, recipient_user.id, "📥", f"รับ{d.item_name}จากห้อง {d.depositor.username}")
-    if is_recipient:
+    if notify_depositor:
         notify(db, d.depositor_id, "📥", "ผู้รับได้รับของแล้ว", f"ห้อง {d.recipient_username} รับ{d.item_name}เรียบร้อย")
-
-    db.commit()
-    db.refresh(d)
-    return _to_out(db, d, current_user)
+    elif recipient_user:
+        notify(db, recipient_user.id, "📥", "ยืนยันรับของแล้ว", f"{d.item_name} จากห้อง {d.depositor.username}")
 
 
 @router.post("/deposits/{deposit_id}/cancel", response_model=schemas.DepositOut)

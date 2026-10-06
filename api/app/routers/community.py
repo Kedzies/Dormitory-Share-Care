@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..deps import get_current_user
-from ..services import remind_due_soon, total_points
+from ..services import BADGES, check_badges, remind_due_soon, total_points
 
 router = APIRouter(tags=["Points, Notifications & Activity"])
 
@@ -116,3 +116,25 @@ def my_activity(
         .limit(100)
         .all()
     )
+
+
+@router.get("/badges/me", response_model=list[schemas.BadgeOut])
+def my_badges(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """เหรียญทั้งหมด พร้อมความคืบหน้า (ตรวจและมอบเหรียญที่ถึงเป้าให้ด้วย)"""
+    stats = check_badges(db, current_user.id)
+    db.commit()
+    earned = {
+        b.code: b.earned_at
+        for b in db.query(models.UserBadge).filter(models.UserBadge.user_id == current_user.id)
+    }
+    return [
+        schemas.BadgeOut(
+            code=code, title=title, description=desc,
+            progress=min(stats[stat], target), target=target,
+            earned=code in earned, earned_at=earned.get(code),
+        )
+        for code, title, desc, stat, target in BADGES
+    ]

@@ -257,6 +257,11 @@
   .field input::placeholder, .field textarea::placeholder{color:#9AA7B1;}
   .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--brand); box-shadow:var(--focus);}
   .field textarea{resize:vertical; min-height:84px; height:auto; padding:12px 14px;}
+  .dt-wrap{position:relative; cursor:pointer;}
+  .field .dt-input{padding-right:44px; cursor:pointer; color:var(--ink);}
+  .dt-input::-webkit-calendar-picker-indicator{position:absolute; inset:0; width:auto; height:auto; opacity:0; cursor:pointer;}
+  .dt-icon{position:absolute; right:14px; top:50%; transform:translateY(-50%); color:var(--brand); pointer-events:none; display:flex;}
+  .field-hint{font-size:12px; color:var(--ink-soft); margin-top:5px;}
   .duration-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
   .duration-opt{
     padding:12px 4px; text-align:center; border-radius:12px; border:1px solid var(--border-strong);
@@ -458,9 +463,40 @@
   .btn-sm{width:auto; height:34px; padding:0 12px; font-size:12.5px; align-self:center;}
   .code-chip{font-family:ui-monospace, Menlo, Consolas, monospace; font-size:11.5px; font-weight:600; padding:1px 7px; border-radius:6px; background:var(--t-slate-bg); color:var(--ink-2); margin-left:4px;}
   .user-row{align-items:center;}
+  /* คิว */
+  .queue-card{display:flex; align-items:center; gap:14px; padding:14px; border-radius:12px; margin-bottom:12px;
+    background:var(--t-violet-bg); border:1px solid #DCD5F7;}
+  .queue-num{width:48px; height:48px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    background:var(--t-violet-fg); color:#fff; font-size:22px; font-weight:700;}
+  /* สแกน */
+  .btn-pair{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:8px;}
+  .scan-box{position:relative; aspect-ratio:1/1; max-height:320px; margin:0 auto; border-radius:16px; overflow:hidden; background:#0F1C24;}
+  .scan-box video{width:100%; height:100%; object-fit:cover; display:block;}
+  .scan-frame{position:absolute; inset:18%; border-radius:16px; box-shadow:0 0 0 999px rgba(15,28,36,.45);
+    border:3px solid rgba(255,255,255,.9);}
+  .scan-frame::after{content:""; position:absolute; left:8%; right:8%; height:2px; top:10%; background:#5EEAD4;
+    box-shadow:0 0 12px #5EEAD4; animation:scanline 2s ease-in-out infinite alternate;}
+  @keyframes scanline{to{top:90%;}}
+  .scan-status{position:absolute; left:12px; right:12px; bottom:12px; padding:8px 12px; border-radius:10px; font-size:13px; font-weight:500;
+    background:rgba(255,255,255,.95); color:var(--ink); display:flex; align-items:center; gap:8px;}
+  .scan-status.err{color:var(--t-rose-fg);} .scan-status.ok{color:var(--t-green-fg);}
+  /* เหรียญ */
+  .badge-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .badge{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 12px 14px; text-align:center;}
+  .badge.earned{border-color:#F3D9A4; background:linear-gradient(180deg, #FFFBF0, var(--surface) 60%);}
+  .medal{width:56px; height:56px; margin:0 auto 10px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 0 4px var(--surface), 0 0 0 5px var(--border);}
+  .badge.earned .medal{box-shadow:0 0 0 4px var(--surface), 0 0 0 6px #F5C451, 0 8px 18px -8px rgba(180,83,9,.6);}
+  .badge.locked .medal{opacity:.7;}
+  .badge-title{font-weight:700; font-size:14px;}
+  .badge.locked .badge-title{color:var(--ink-2);}
+  .badge-desc{font-size:12px; color:var(--ink-soft); line-height:1.4; margin-top:2px; min-height:34px;}
+  .badge-date{font-size:11.5px; color:var(--ink-soft); margin-top:6px; display:flex; align-items:center; justify-content:center; gap:4px;}
+  .badge.earned .badge-date{color:var(--t-amber-fg); font-weight:600;}
   @media (min-width: 960px){
     .admin-stats{grid-template-columns:repeat(4,1fr);}
-    .admin-actions{grid-template-columns:1fr 1fr;}
+    .admin-actions{grid-template-columns:repeat(3,1fr);}
+    .badge-grid{grid-template-columns:repeat(4,1fr);}
   }
   @media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important;} }
 </style>
@@ -490,6 +526,7 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script>
 /* ===================== MOCK DATA ===================== */
 /* ===================== APP DATA (โหลดจริงจาก backend ทั้งหมด ไม่มี mock data) ===================== */
@@ -504,7 +541,7 @@ const POINT_RULES = { returnOnTime: 10, depositHandedOff: 5, foundReturned: 20 }
 let items = [], myBorrows = [];
 let depositsData = [];
 let foundData = [], lostData = [], incomingClaims = [], leaderboardData = [];
-let notificationsData = [], activityData = [], recentActivity = [];
+let notificationsData = [], activityData = [], recentActivity = [], badgesData = [];
 let unreadCount = 0;
 let loading = {};   // loading[page] = true ระหว่างโหลดข้อมูลของหน้านั้น
 let uploads = {};   // รูปที่ผู้ใช้เลือก (ย่อขนาดแล้ว) เก็บตาม key ของช่องอัปโหลด
@@ -627,6 +664,9 @@ const ICONS = {
   shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
   heart:'<path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/>',
   chevron:'<path d="m9 18 6-6-6-6"/>',
+  award:'<circle cx="12" cy="8" r="6"/><path d="M15.5 13 17 22l-5-3-5 3 1.5-9"/>',
+  lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  scan:'<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/>',
   qr:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/>',
 };
 function ico(name, size = 20, sw = 1.8){
@@ -640,10 +680,10 @@ const EMOJI_ICON = {
   '🎉':'sparkles','📢':'megaphone','📥':'inbox','📤':'send','😊':'smile','👋':'smile','🙂':'smile','🚫':'ban','🔑':'key',
   '👛':'wallet','💵':'wallet','👜':'bag','🎧':'headphones','📱':'phone','💳':'card','👓':'glasses','⌚':'watch',
   '🧴':'cup','🥤':'cup','📚':'book','👕':'shirt','👟':'shirt','🧢':'shirt','🔌':'plug','🖊':'pen','💻':'laptop',
-  '🍱':'utensils','🍪':'utensils','🧸':'gift','🚲':'package','🏆':'trophy','🪙':'star','📜':'history',
+  '🍱':'utensils','🍪':'utensils','🧸':'gift','🚲':'package','🏆':'trophy','🪙':'star','🏅':'award','📜':'history',
 };
 const ICON_TONE = {
-  checkCircle:'green', smile:'green', sparkles:'amber', gift:'amber', trophy:'amber', star:'amber', clock:'amber',
+  award:'amber', checkCircle:'green', smile:'green', sparkles:'amber', gift:'amber', trophy:'amber', star:'amber', clock:'amber',
   alert:'rose', xCircle:'rose', ban:'slate', megaphone:'violet', search:'violet', hand:'violet', dice:'violet',
   inbox:'sky', send:'sky', package:'sky', bell:'teal', umbrella:'sky', wrench:'amber', hammer:'amber', key:'amber',
 };
@@ -727,11 +767,12 @@ function showToast(msg, icon="✅"){
   window._toastT = setTimeout(()=>t.classList.remove('show'), 2600);
 }
 function openModal(html){
+  stopScanner();
   uploads = {};
   document.getElementById('modalSheet').innerHTML = `<div class="modal-handle"></div><button class="modal-close" data-close="1" aria-label="ปิด">${ico('x', 18)}</button>` + html;
   document.getElementById('modalOverlay').classList.add('open');
 }
-function closeModal(){ document.getElementById('modalOverlay').classList.remove('open'); }
+function closeModal(){ stopScanner(); document.getElementById('modalOverlay').classList.remove('open'); }
 
 /** backend เก็บเวลาเป็น UTC แต่ไม่ใส่ timezone มาด้วย — เติม Z ให้ browser แปลงเป็นเวลาไทยถูกต้อง */
 function parseDate(s){
@@ -826,6 +867,33 @@ function uploadBox(key, label){
     </div>
   </div>`;
 }
+/* ---------- ช่องเลือกวัน-เวลา (ปฏิทินของเบราว์เซอร์) ---------- */
+/** Date -> ค่าของ <input type="datetime-local"> (YYYY-MM-DDTHH:MM ตามเวลาเครื่อง) */
+function toLocalInput(d){
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+/** ช่องวัน-เวลา: แตะตรงไหนก็เปิดหน้าต่างปฏิทินขึ้นมาให้เลือก */
+function dateTimeField(id, label, { min, max, value, hint } = {}){
+  return `<div class="field">
+    <label for="${id}">${label}</label>
+    <div class="dt-wrap">
+      <input id="${id}" class="dt-input" type="datetime-local"
+        ${min ? `min="${toLocalInput(min)}"` : ''} ${max ? `max="${toLocalInput(max)}"` : ''} ${value ? `value="${toLocalInput(value)}"` : ''}>
+      <span class="dt-icon">${ico('calendar', 18)}</span>
+    </div>
+    ${hint ? `<div class="field-hint">${hint}</div>` : ''}
+  </div>`;
+}
+/** อ่านค่าที่เลือกเป็นข้อความไทย เช่น "7 ต.ค. 2569 20:00 น." (ว่าง = '') */
+function pickedDateTime(id){
+  const v = val(id);
+  if(!v) return '';
+  const d = new Date(v);
+  if(isNaN(d)) return '';
+  return d.toLocaleString('th-TH', { dateStyle:'medium', timeStyle:'short' }) + ' น.';
+}
+
 function pill(text, tone){
   return `<span class="pill t-${tone}">${text}</span>`;
 }
@@ -868,7 +936,8 @@ const pageLoaders = {
   borrow: async ()=>{
     const [rawItems, rawBorrows] = await Promise.all([api('/items'), api('/borrow/me')]);
     items = rawItems.map(i => ({ id:i.id, name:i.name, cat:i.category, emoji:i.emoji, status:i.status,
-      quantity:i.quantity, available_count:i.available_count, borrowed_count:i.borrowed_count }));
+      quantity:i.quantity, available_count:i.available_count, borrowed_count:i.borrowed_count,
+      waitlist_count:i.waitlist_count, my_queue_position:i.my_queue_position }));
     myBorrows = rawBorrows;
   },
   deposit: async ()=>{ depositsData = await api('/deposits/me'); },
@@ -878,8 +947,8 @@ const pageLoaders = {
     ]);
   },
   profile: async ()=>{
-    const [s, a] = await Promise.all([api('/summary/me'), api('/activity/me')]);
-    applySummary(s); activityData = a;
+    const [s, a, b] = await Promise.all([api('/summary/me'), api('/activity/me'), api('/badges/me')]);
+    applySummary(s); activityData = a; badgesData = b;
   },
   admin: async ()=>{
     if(!user.isAdmin) return;
@@ -1062,6 +1131,8 @@ function pageBorrow(){
             <div class="item-name">${esc(i.name)}</div>
             <div class="item-cat">${esc(i.cat)}</div>
             ${i.status === 'repair' ? `<span class="status-badge ${s.cls}">${s.label}</span>` : stockMeter(i)}
+            ${i.my_queue_position ? pill(`${ico('clock', 12)}คุณอยู่คิวที่ ${i.my_queue_position}`, 'violet')
+              : i.waitlist_count ? `<div class="row-meta">${ico('user', 12)}มีคนรอคิว ${i.waitlist_count} คน</div>` : ''}
           </div>
         </button>`;
       }).join("")}
@@ -1081,11 +1152,18 @@ function itemModal(item){
       <div><dt>ว่างตอนนี้</dt><dd><span class="status-badge ${s.cls}">${s.label}</span></dd></div>
     </dl>`;
   if(item.status !== "available"){
-    return head + stock + `
-      <p class="modal-text">${item.status === 'repair'
-        ? 'ของชิ้นนี้กำลังซ่อมแซม ยังยืมไม่ได้ในขณะนี้'
-        : 'ตอนนี้ถูกยืมครบทุกชิ้นแล้ว ลองใหม่ภายหลัง หรือดูรายการอื่นที่พร้อมให้ยืม'}</p>
-      <button class="btn-ghost" data-close="1">ปิด</button>`;
+    const queue = item.my_queue_position
+      ? `<div class="queue-card">
+          <div class="queue-num">${item.my_queue_position}</div>
+          <div><div class="row-title">คุณอยู่คิวที่ ${item.my_queue_position} จาก ${item.waitlist_count} คน</div>
+          <div class="row-sub">มีคนคืนเมื่อไหร่ ระบบจะแจ้งเตือนคุณตามลำดับคิว</div></div>
+        </div>
+        <button class="btn-ghost" data-do="leave-waitlist" data-id="${item.id}">ออกจากคิว</button>`
+      : `${infoBox('bell', `ตอนนี้ถูกยืมครบทุกชิ้นแล้ว${item.waitlist_count ? ` · มีคนรอคิวอยู่ ${item.waitlist_count} คน` : ''} — เข้าคิวไว้ แล้วระบบจะแจ้งเตือนทันทีที่มีคนคืน`, 'violet')}
+        <button class="btn-primary" data-do="join-waitlist" data-id="${item.id}">${ico('bell', 18)}แจ้งเตือนเมื่อว่าง (เข้าคิว)</button>`;
+    return head + stock + (item.status === 'repair'
+      ? `<p class="modal-text">ของชิ้นนี้กำลังซ่อมแซม ยังยืมไม่ได้ในขณะนี้</p><button class="btn-ghost" data-close="1">ปิด</button>`
+      : queue);
   }
   return head + stock + `
     <div class="field">
@@ -1105,7 +1183,7 @@ function borrowSuccessModal(record){
       <div><dt>ระยะเวลา</dt><dd>${esc(record.duration_label)}</dd></div>
       <div><dt>กำหนดคืน</dt><dd>${fmtDateTime(record.due_at)}</dd></div>
     </dl>
-    ${qrBlock("BR-" + record.id, "รหัสการยืมของคุณ")}
+    ${qrBlock("BR-" + record.id, "รหัสการยืม — ถ้าเอาไปคืนที่ออฟฟิศ ให้นิติสแกนรหัสนี้")}
     ${infoBox('clock', `คืนตรงเวลารับ +${POINT_RULES.returnOnTime} แต้ม — ระบบจะเตือนก่อนครบกำหนด 2 ชม.`, 'sky')}
     <button class="btn-primary" data-close="1">เสร็จสิ้น</button>`;
 }
@@ -1151,7 +1229,10 @@ function pageDeposit(){
   const done = depositsData.filter(d => d.status!=='waiting');
   const section = (icon, title, list) => `<div class="section-title">${ico(icon, 18)}${title} <span class="count">${list.length}</span></div>${list.map(depositRow).join("")}`;
   return topbar("ระบบฝากของ") + `
-    <button class="btn-primary" data-do="new-deposit" style="margin-bottom:8px;">${ico('plus', 18, 2.2)}สร้างรายการฝากของใหม่</button>
+    <div class="btn-pair">
+      <button class="btn-primary" data-do="new-deposit">${ico('plus', 18, 2.2)}ฝากของใหม่</button>
+      <button class="btn-ghost" data-do="open-scanner">${ico('scan', 18)}สแกน QR ส่งของ</button>
+    </div>
     ${depositsData.length===0 ? `<div style="margin-top:16px;">${emptyState("package","ยังไม่มีรายการฝากของ","สร้างรายการฝากของชิ้นแรกของคุณได้เลย")}</div>` : ''}
     ${received.length ? section('inbox', 'ของที่ฝากถึงฉัน', received) : ''}
     ${sent.length ? section('send', 'ที่ฉันฝากไว้ (รอผู้รับ)', sent) : ''}
@@ -1163,7 +1244,7 @@ function newDepositModal(){
   return modalHead('package', 'สร้างรายการฝากของ', 'teal') + `
     <div class="field"><label for="depWhat">ฝากอะไร?</label><input id="depWhat" type="text" placeholder="เช่น กุญแจ, พัสดุ, กระเป๋า"></div>
     <div class="field"><label for="depFor">ฝากให้ใคร? (หมายเลขห้อง)</label><input id="depFor" type="text" placeholder="เช่น B-201"></div>
-    <div class="field"><label for="depEta">คาดว่าจะมารับเมื่อไหร่?</label><input id="depEta" type="text" placeholder="เช่น วันนี้ 20:00 น."></div>
+    ${dateTimeField('depEta', 'คาดว่าจะมารับเมื่อไหร่? (ไม่บังคับ)', { min: new Date() })}
     <div class="field"><label for="depNote">รายละเอียดเพิ่มเติม (ถ้ามี)</label><input id="depNote" type="text" placeholder="เช่น ฝากไว้ที่ป้อม รปภ."></div>
     ${uploadBox('deposit', 'รูปภาพสิ่งของ (ถ้ามี)')}
     <button class="btn-primary" data-do="confirm-deposit">สร้างรายการฝาก</button>`;
@@ -1195,6 +1276,7 @@ function depositDetailModal(d){
     ${d.status==='waiting' && sent && !d.recipient_registered ? infoBox('alert', 'ห้องนี้ยังไม่มีบัญชีในระบบ — เมื่อส่งของถึงมือแล้ว กดยืนยันเองได้เลย', 'amber') : ''}
     ${d.status==='waiting' ? `<button class="btn-primary" style="margin-top:14px;" data-do="collect-deposit" data-id="${d.id}">
         ${ico('check', 18, 2.2)}${sent ? 'ยืนยันว่าส่งถึงมือผู้รับแล้ว' : 'ยืนยันว่ารับของแล้ว'}</button>` : ''}
+    ${d.status==='waiting' && sent && d.recipient_registered ? `<button class="btn-ghost" style="margin-top:10px;" data-do="open-scanner">${ico('scan', 18)}สแกน QR จากมือถือผู้รับ</button>` : ''}
     ${d.status==='waiting' && sent ? `<button class="btn-danger" style="margin-top:10px;" data-do="cancel-deposit" data-id="${d.id}">ยกเลิกรายการ</button>` : ''}
     <button class="btn-ghost" style="margin-top:10px;" data-close="1">ปิด</button>`;
 }
@@ -1294,7 +1376,7 @@ function newFoundModal(){
   return modalHead('gift', 'แจ้งเจอของหาย', 'violet') + `
     <div class="field"><label for="foundWhat">เจออะไร?</label><input id="foundWhat" type="text" placeholder="เช่น กระเป๋าสตางค์, หูฟัง"></div>
     <div class="field"><label for="foundWhere">เจอที่ไหน?</label><input id="foundWhere" type="text" placeholder="เช่น หน้าลิฟต์ชั้น 3"></div>
-    <div class="field"><label for="foundWhen">วัน-เวลาที่เจอ</label><input id="foundWhen" type="text" placeholder="เช่น วันนี้ 09:00 น."></div>
+    ${dateTimeField('foundWhen', 'วัน-เวลาที่เจอ', { max: new Date(), value: new Date() })}
     ${uploadBox('found', 'รูปภาพของที่เจอ (แนะนำ)')}
     ${infoBox('shield', `เก็บของไว้กับตัวก่อน เมื่อมีคนขอรับ คุณจะเป็นคนตรวจสอบรายละเอียดและยืนยัน — คืนสำเร็จรับ <b>+${POINT_RULES.foundReturned} แต้ม</b>`, 'teal')}
     <button class="btn-primary" data-do="confirm-found">ส่งเรื่อง</button>`;
@@ -1302,7 +1384,8 @@ function newFoundModal(){
 function newLostModal(){
   return modalHead('megaphone', 'ประกาศตามหาของ', 'rose') + `
     <div class="field"><label for="lostWhat">ของที่หายคืออะไร?</label><input id="lostWhat" type="text" placeholder="เช่น ร่มพับสีดำ"></div>
-    <div class="field"><label for="lostWhere">หายที่ไหน / เมื่อไหร่ (โดยประมาณ)</label><input id="lostWhere" type="text" placeholder="เช่น โรงอาหาร เมื่อวานเย็น"></div>
+    <div class="field"><label for="lostWhere">หายที่ไหน (โดยประมาณ)</label><input id="lostWhere" type="text" maxlength="100" placeholder="เช่น โรงอาหาร, ล็อบบี้ชั้น 1"></div>
+    ${dateTimeField('lostWhen', 'หายเมื่อไหร่ (โดยประมาณ)', { max: new Date(), hint: 'ไม่แน่ใจเวลา เว้นว่างไว้ได้' })}
     ${uploadBox('lost', 'รูปภาพอ้างอิง (ถ้ามี)')}
     ${infoBox('bell', 'ถ้ามีคนแจ้งเจอของที่ชื่อคล้ายกัน ระบบจะแจ้งเตือนคุณทันที', 'sky')}
     <button class="btn-primary" data-do="confirm-lost">ประกาศตามหา</button>`;
@@ -1320,6 +1403,24 @@ function claimModal(item){
 }
 
 /* ---------- โปรไฟล์ / แจ้งเตือน ---------- */
+const BADGE_STYLE = {
+  first_borrow:['repeat','sky'], regular_10:['star','violet'], on_time_5:['clock','teal'], on_time_20:['checkCircle','green'],
+  handoff_5:['package','sky'], finder_1:['gift','amber'], finder_5:['search','violet'], points_100:['trophy','amber'],
+};
+function badgeCard(b){
+  const [icon, tone] = BADGE_STYLE[b.code] || ['award', 'amber'];
+  const pct = Math.round(b.progress / b.target * 100);
+  return `<div class="badge ${b.earned ? 'earned' : 'locked'}" title="${esc(b.description)}">
+    <div class="medal t-${b.earned ? tone : 'slate'}">${ico(b.earned ? icon : 'lock', 24, 1.8)}</div>
+    <div class="badge-title">${esc(b.title)}</div>
+    <div class="badge-desc">${esc(b.description)}</div>
+    ${b.earned
+      ? `<div class="badge-date">${ico('check', 12, 2.4)}ได้รับ ${parseDate(b.earned_at).toLocaleDateString('th-TH', {dateStyle:'medium'})}</div>`
+      : `<div class="stock-bar t-${tone}" style="margin-top:8px;"><span style="width:${pct}%"></span></div>
+         <div class="badge-date">${b.progress} / ${b.target}</div>`}
+  </div>`;
+}
+
 function pageProfile(){
   return topbar("โปรไฟล์ของฉัน") + `
     <div class="card profile-card">
@@ -1331,8 +1432,11 @@ function pageProfile(){
     </div>
     <div class="stat-row">
       <div class="stat"><div class="k">${ico('star', 14)}แต้มความดี</div><div class="v">${user.points}</div></div>
-      <div class="stat"><div class="k">${ico('history', 14)}รายการทั้งหมด</div><div class="v">${activityData.length}</div></div>
+      <div class="stat"><div class="k">${ico('award', 14)}เหรียญรางวัล</div><div class="v">${badgesData.filter(b => b.earned).length}<span class="v-sub"> / ${badgesData.length || 8}</span></div></div>
     </div>
+    <div class="section-title">${ico('award', 18)}เหรียญรางวัล</div>
+    ${loading.profile && badgesData.length===0 ? loadingState()
+      : `<div class="badge-grid">${[...badgesData].sort((a, b) => b.earned - a.earned).map(badgeCard).join('')}</div>`}
     <div class="section-title">ประวัติการทำรายการ</div>
     ${loading.profile && activityData.length===0 ? loadingState()
       : activityData.length===0 ? emptyState("history","ยังไม่มีประวัติ","ทุกการยืม ฝาก และช่วยเหลือจะถูกบันทึกไว้ที่นี่")
@@ -1419,6 +1523,7 @@ function adminOverview(){
     </div>
     <div class="admin-actions">
       <button class="btn-primary" data-do="admin-announce">${ico('megaphone', 18)}ส่งประกาศถึงทุกห้อง</button>
+      <button class="btn-ghost" data-do="open-scanner">${ico('scan', 18)}สแกน QR รับคืน / ส่งของ</button>
       <button class="btn-ghost" data-do="admin-new-item">${ico('plus', 18, 2.2)}เพิ่มของส่วนกลาง</button>
     </div>
     <div class="section-title">${ico('clock', 18)}ต้องติดตาม <span class="count">${urgent.length}</span></div>
@@ -1560,6 +1665,89 @@ function announceModal(){
     <button class="btn-primary" data-do="admin-send-announce">${ico('send', 17)}ส่งประกาศ</button>`;
 }
 
+/* ===================== สแกน QR ===================== */
+let scanStream = null, scanTimer = null;
+
+function scannerModal(){
+  const hint = user.isAdmin
+    ? 'สแกน QR การยืม (BR-) ตอนรับของคืนที่ออฟฟิศ หรือ QR ฝากของ (DP-) ตอนส่งพัสดุให้ผู้รับ'
+    : 'ให้ผู้รับเปิด QR รับของในแอป แล้วสแกนเพื่อยืนยันว่าส่งถึงมือแล้ว';
+  return modalHead('scan', 'สแกน QR', 'teal') + `
+    <p class="modal-text">${hint}</p>
+    <div class="scan-box">
+      <video id="scanVideo" playsinline muted></video>
+      <div class="scan-frame"></div>
+      <div id="scanStatus" class="scan-status">${ico('camera', 16)}กำลังเปิดกล้อง...</div>
+    </div>
+    <div class="field" style="margin-top:16px;"><label for="scanCode">สแกนไม่ได้? พิมพ์รหัสแทน</label>
+      <input id="scanCode" type="text" autocomplete="off" placeholder="เช่น DP-1A2B3C" style="text-transform:uppercase; font-family:ui-monospace,Consolas,monospace; letter-spacing:1px;">
+    </div>
+    <button class="btn-primary" data-do="scan-submit">ยืนยันรหัส</button>`;
+}
+
+function setScanStatus(html, tone){
+  const el = document.getElementById('scanStatus');
+  if(el){ el.innerHTML = html; el.className = 'scan-status' + (tone ? ' ' + tone : ''); }
+}
+
+async function startScanner(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    setScanStatus(`${ico('alert', 16)}เบราว์เซอร์นี้เปิดกล้องไม่ได้ — พิมพ์รหัสด้านล่างแทน`, 'err');
+    return;
+  }
+  try{
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+  }catch(e){
+    // หมายเหตุ: กล้องใช้ได้เฉพาะ https หรือ localhost
+    setScanStatus(`${ico('alert', 16)}เปิดกล้องไม่ได้ (ไม่ได้อนุญาต / ไม่มีกล้อง) — พิมพ์รหัสแทนได้`, 'err');
+    return;
+  }
+  const video = document.getElementById('scanVideo');
+  if(!video){ stopScanner(); return; }   // ผู้ใช้ปิดหน้าต่างไปก่อนกล้องเปิดเสร็จ
+  video.srcObject = scanStream;
+  await video.play().catch(()=>{});
+  setScanStatus(`${ico('qr', 16)}เล็ง QR ให้อยู่ในกรอบ`);
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  scanTimer = setInterval(()=>{
+    if(!scanStream || video.readyState < 2 || typeof jsQR === 'undefined') return;
+    const scale = Math.min(1, 640 / video.videoWidth);   // ย่อภาพก่อนอ่าน ให้ลื่นบนมือถือ
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const hit = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+    if(hit && hit.data){
+      stopScanner();
+      if(navigator.vibrate) navigator.vibrate(80);
+      setScanStatus(`${ico('check', 16)}อ่านได้: ${esc(hit.data)}`, 'ok');
+      submitScan(hit.data, null);
+    }
+  }, 200);
+}
+
+function stopScanner(){
+  if(scanTimer){ clearInterval(scanTimer); scanTimer = null; }
+  if(scanStream){ scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+}
+
+async function submitScan(code, btn){
+  const run = async ()=>{
+    const res = await api('/scan', { method:'POST', body:{ code: code.trim().toUpperCase() } });
+    closeModal();
+    showToast(res.message, '🎉');
+    loadPage(state.page);
+  };
+  if(btn) return withBusy(btn, 'กำลังตรวจสอบ...', run);
+  try{ await run(); }
+  catch(err){
+    setScanStatus(`${ico('alert', 16)}${esc(err.message)}`, 'err');
+    showToast(err.message, '⚠️');
+    const input = document.getElementById('scanCode');
+    if(input) input.value = code;
+  }
+}
+
 /* ===================== MAIN RENDER ===================== */
 function render(){
   const content = document.getElementById('content');
@@ -1600,7 +1788,7 @@ async function completeLogin(){
 function resetAppData(){
   items = []; myBorrows = []; depositsData = []; foundData = []; lostData = [];
   incomingClaims = []; leaderboardData = []; notificationsData = []; activityData = [];
-  recentActivity = []; unreadCount = 0; loading = {};
+  recentActivity = []; badgesData = []; unreadCount = 0; loading = {};
   user.name = ''; user.room = ''; user.points = 0; user.isAdmin = false;
   adminData = {}; state.adminTab = 'overview';
 }
@@ -1744,7 +1932,7 @@ document.body.addEventListener('click', async (e)=>{
       if(!item_name || !recipient_username){ showToast('กรอก "ฝากอะไร" และ "ฝากให้ห้องไหน" ให้ครบ', '⚠️'); break; }
       await withBusy(t, 'กำลังสร้างรายการ...', async ()=>{
         const d = await api('/deposits', { method:'POST', body:{
-          item_name, recipient_username, eta: val('depEta') || null, note: val('depNote') || null,
+          item_name, recipient_username, eta: pickedDateTime('depEta') || null, note: val('depNote') || null,
           image_data: uploads.deposit || null } });
         openModal(depositSuccessModal(d));
         loadPage('deposit');
@@ -1777,7 +1965,7 @@ document.body.addEventListener('click', async (e)=>{
       if(!item_name || !location){ showToast('กรอก "เจออะไร" และ "เจอที่ไหน" ให้ครบ', '⚠️'); break; }
       await withBusy(t, 'กำลังส่ง...', async ()=>{
         await api('/found', { method:'POST', body:{
-          item_name, location, found_time: val('foundWhen') || null,
+          item_name, location, found_time: pickedDateTime('foundWhen') || null,
           emoji: guessEmoji(item_name, '🎁'), image_data: uploads.found || null } });
         closeModal();
         showToast('แจ้งเจอของเรียบร้อย ขอบคุณสำหรับความดีของคุณ!', '🎉');
@@ -1787,8 +1975,9 @@ document.body.addEventListener('click', async (e)=>{
     }
     case 'new-lost': openModal(newLostModal()); break;
     case 'confirm-lost': {
-      const item_name = val('lostWhat'), location_time = val('lostWhere');
-      if(!item_name || !location_time){ showToast('กรอกชื่อของและสถานที่ที่หายให้ครบ', '⚠️'); break; }
+      const item_name = val('lostWhat'), where = val('lostWhere'), when = pickedDateTime('lostWhen');
+      if(!item_name || !where){ showToast('กรอกชื่อของและสถานที่ที่หายให้ครบ', '⚠️'); break; }
+      const location_time = when ? `${where} · ${when}` : where;
       await withBusy(t, 'กำลังประกาศ...', async ()=>{
         await api('/lost', { method:'POST', body:{
           item_name, location_time, emoji: guessEmoji(item_name, '🔍'), image_data: uploads.lost || null } });
@@ -1824,6 +2013,33 @@ document.body.addEventListener('click', async (e)=>{
         loadPage('lostfound');
       });
       break;
+    /* ---------- คิวรอของว่าง ---------- */
+    case 'join-waitlist':
+      await withBusy(t, 'กำลังเข้าคิว...', async ()=>{
+        const res = await api(`/items/${id}/waitlist`, { method:'POST' });
+        closeModal();
+        showToast(`เข้าคิวแล้ว — คุณอยู่คิวที่ ${res.position} ระบบจะแจ้งเตือนเมื่อว่าง`, '🔔');
+        loadPage('borrow');
+      });
+      break;
+    case 'leave-waitlist':
+      await withBusy(t, '...', async ()=>{
+        await api(`/items/${id}/waitlist`, { method:'DELETE' });
+        closeModal(); showToast('ออกจากคิวแล้ว');
+        loadPage('borrow');
+      });
+      break;
+
+    /* ---------- สแกน QR ---------- */
+    case 'open-scanner': openModal(scannerModal()); startScanner(); break;
+    case 'scan-submit': {
+      const code = val('scanCode');
+      if(code.length < 4){ showToast('พิมพ์รหัสให้ครบ เช่น DP-1A2B3C', '⚠️'); break; }
+      stopScanner();
+      await submitScan(code, t);
+      break;
+    }
+
     /* ---------- นิติบุคคล ---------- */
     case 'admin-new-item': openModal(itemFormModal(null)); break;
     case 'admin-edit-item': {
@@ -1940,10 +2156,20 @@ document.body.addEventListener('input', (e)=>{
 
 /* กด Enter ในหน้าเข้าสู่ระบบ = กดปุ่ม */
 document.body.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' && e.target.id === 'scanCode'){
+    const btn = document.querySelector('[data-do="scan-submit"]');
+    if(btn && !btn.disabled) btn.click();
+    return;
+  }
   if(e.key === 'Enter' && state.page === 'auth' && e.target.tagName === 'INPUT'){
     const btn = document.querySelector('.auth-wrap .btn-primary');
     if(btn && !btn.disabled) btn.click();
   }
+});
+
+document.body.addEventListener('click', (e)=>{
+  const input = e.target.closest('.dt-wrap')?.querySelector('.dt-input');
+  if(input && typeof input.showPicker === 'function'){ try{ input.showPicker(); }catch(_){ /* เบราว์เซอร์เก่าใช้ปุ่มของตัวเองแทน */ } }
 });
 
 document.getElementById('modalOverlay').addEventListener('click', (e)=>{

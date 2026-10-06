@@ -110,6 +110,8 @@ class ItemOut(BaseModel):
     quantity: int = 1
     borrowed_count: int = 0
     available_count: int = 0
+    waitlist_count: int = 0                    # จำนวนคนที่รอคิวอยู่
+    my_queue_position: Optional[int] = None    # คิวของฉัน (1 = คิวแรก) ถ้าไม่ได้รอ = None
     created_at: datetime
 
     class Config:
@@ -347,3 +349,29 @@ class AnnouncementRequest(BaseModel):
 
 class AnnouncementResult(BaseModel):
     sent: int
+
+
+# ---------- คิวรอ / เหรียญ / สแกน QR ----------
+class WaitlistOut(BaseModel):
+    item_id: int
+    position: int
+    waitlist_count: int
+
+
+class BadgeOut(BaseModel):
+    code: str
+    title: str
+    description: str
+    progress: int
+    target: int
+    earned: bool
+    earned_at: Optional[datetime] = None
+
+
+class ScanRequest(BaseModel):
+    code: str = Field(min_length=3, max_length=30)
+
+
+class ScanResult(BaseModel):
+    kind: str  # deposit | borrow
+    message: str

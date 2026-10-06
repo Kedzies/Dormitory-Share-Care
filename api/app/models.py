@@ -182,3 +182,33 @@ class Activity(Base):
     icon = Column(String(10), default="📌")
     text = Column(String(300), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ---------------------------------------------------------------------------
+# คิวรอของว่าง / เหรียญรางวัล
+# ---------------------------------------------------------------------------
+class ItemWaitlist(Base):
+    """คิวรอยืมของที่ถูกยืมหมด — คืนเมื่อไหร่ แจ้งคนแรกในคิวก่อน"""
+
+    __tablename__ = "item_waitlist"
+
+    id = Column(Integer, primary_key=True, index=True)
+    item_id = Column(Integer, ForeignKey("items.id"), index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    # waiting | notified | done | cancelled
+    status = Column(String(20), nullable=False, default="waiting")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    notified_at = Column(DateTime, nullable=True)
+
+    item = relationship("Item")
+
+
+class UserBadge(Base):
+    """เหรียญที่ผู้ใช้ได้รับแล้ว (นิยามเหรียญอยู่ใน services.BADGES)"""
+
+    __tablename__ = "user_badges"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    code = Column(String(40), nullable=False)
+    earned_at = Column(DateTime, default=datetime.utcnow)

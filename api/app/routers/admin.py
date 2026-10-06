@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..deps import get_current_admin
-from ..services import borrowed_counts, log_activity, notify, total_points
+from ..services import borrowed_counts, log_activity, notify, notify_waitlist, total_points
 from .items import item_out
 
 router = APIRouter(prefix="/admin", tags=["Admin (นิติบุคคล)"])
@@ -98,6 +98,7 @@ def update_item(
         value = getattr(payload, field)
         if value is not None:
             setattr(item, field, value)
+    notify_waitlist(db, item)  # เพิ่มจำนวน/ซ่อมเสร็จ → แจ้งคนที่รอคิว
     db.commit()
     db.refresh(item)
     return item_out(item, borrowed)
@@ -163,14 +164,19 @@ def force_return(record_id: int, db: Session = Depends(get_db), admin: models.Us
         raise HTTPException(status_code=404, detail="ไม่พบรายการยืมนี้")
     if record.status != "active":
         raise HTTPException(status_code=400, detail="รายการนี้ถูกคืนไปแล้ว")
+    mark_returned_by_admin(db, record)
+    db.commit()
+    db.refresh(record)
+    return _borrow_out(record, datetime.utcnow())
+
+
+def mark_returned_by_admin(db: Session, record: models.BorrowRecord) -> None:
     record.status = "returned"
     record.returned_at = datetime.utcnow()
     record.return_note = "นิติบุคคลบันทึกรับคืน"
     notify(db, record.borrower_id, "✅", "นิติบุคคลบันทึกรับคืนแล้ว", record.item.name)
     log_activity(db, record.borrower_id, record.item.emoji, f"คืน{record.item.name} (บันทึกโดยนิติ)")
-    db.commit()
-    db.refresh(record)
-    return _borrow_out(record, datetime.utcnow())
+    notify_waitlist(db, record.item)
 
 
 # ---------------------------------------------------------------------------
