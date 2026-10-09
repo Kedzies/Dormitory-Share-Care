@@ -8,7 +8,7 @@ from sqlalchemy import inspect, text
 from . import models
 from .database import Base, SessionLocal, engine
 from .routers import admin, auth, community, deposits, items, lostfound, scan, users
-from .security import hash_password
+from .security import hash_password, verify_password
 
 # สร้างตารางในฐานข้อมูลอัตโนมัติตอน service เริ่มทำงาน (เหมาะกับ dev/demo)
 # งาน production จริงควรใช้เครื่องมือ migration เช่น Alembic แทน
@@ -69,16 +69,22 @@ _seed_default_items()
 
 def _ensure_admin() -> None:
     """สร้าง/ตั้งบัญชีนิติบุคคลจาก ADMIN_USERNAME + ADMIN_PASSWORD ใน .env
-    ถ้ามีบัญชีชื่อนี้อยู่แล้ว จะแค่ให้สิทธิ์นิติ (ไม่เปลี่ยนรหัสผ่านเดิม)"""
+    .env เป็นตัวจริงเสมอ: ทุกครั้งที่เริ่มระบบ บัญชีนี้จะเป็นนิติ เปิดใช้งาน และรหัสผ่านตรงกับ .env"""
     username = os.getenv("ADMIN_USERNAME", "").strip()
-    password = os.getenv("ADMIN_PASSWORD", "")
+    password = os.getenv("ADMIN_PASSWORD", "").strip()
     if not username:
+        logging.warning("ไม่ได้ตั้ง ADMIN_USERNAME ใน .env — ยังไม่มีบัญชีนิติ")
         return
     db = SessionLocal()
     try:
         user = db.query(models.User).filter(models.User.username == username).first()
         if user:
             user.is_admin = True
+            user.is_active = True
+            # แก้ ADMIN_PASSWORD ใน .env ทีหลัง → อัปเดตรหัสผ่านให้ตรง (เดิมจะใช้รหัสแรกตลอด)
+            if len(password) >= 6 and not verify_password(password, user.hashed_password):
+                user.hashed_password = hash_password(password)
+                logging.warning("อัปเดตรหัสผ่านบัญชีนิติ %s ให้ตรงกับ .env แล้ว", username)
         elif len(password) >= 6:
             db.add(models.User(
                 username=username,
