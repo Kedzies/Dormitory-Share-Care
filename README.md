@@ -3,13 +3,13 @@
 ระบบเว็บแอปสำหรับหอพัก — **ยืม-คืนของส่วนกลาง, ฝากของ, ของหายได้คืน และแต้มความดี (Karma Points)** พร้อม **แผงควบคุมสำหรับนิติบุคคล**
 ออกแบบแบบ Mobile-First (บนจอคอมเปลี่ยนเป็นเมนูด้านซ้ายอัตโนมัติ) ทุกฟีเจอร์ทำงานจริงกับฐานข้อมูล PostgreSQL ผ่าน REST API (FastAPI) และรวม Frontend + Backend ไว้ใน repo เดียว
 
-![status](https://img.shields.io/badge/core%20features-complete-brightgreen) ![progress](https://img.shields.io/badge/overall-%E2%89%8884%25-green)
+![status](https://img.shields.io/badge/core%20features-complete-brightgreen) ![progress](https://img.shields.io/badge/overall-%E2%89%8889%25-green)
 
 ---
 
 ## 📊 ความคืบหน้าของโปรเจกต์
 
-**ฟีเจอร์หลักทั้งหมดทำงานจริงแล้ว** · ภาพรวมรวมงานเสริมใน Roadmap ≈ **84%** (16 จาก 19 งาน)
+**ฟีเจอร์หลักทั้งหมดทำงานจริงแล้ว** · ภาพรวมรวมงานเสริมใน Roadmap ≈ **89%** (16 จาก 18 งาน)
 
 | ส่วน | สถานะ |
 |---|---|
@@ -30,7 +30,6 @@
 | แผงควบคุมนิติบุคคล (Admin role) | ✅ เสร็จ |
 | Docker Compose (db + pgAdmin + api) | ✅ เสร็จ |
 | Real-time ด้วย WebSocket (ตอนนี้เช็กทุก 30 วินาที) | ❌ ยังไม่ทำ |
-| เก็บรูปบน Cloud Storage (ตอนนี้เก็บในฐานข้อมูล) | ❌ ยังไม่ทำ |
 | Deploy ขึ้นเซิร์ฟเวอร์จริง (HTTPS) | ❌ ยังไม่ทำ |
 
 ---
@@ -264,7 +263,6 @@ docker compose down -v    # หยุด + ล้างข้อมูลทั�
 - [x] สแกน QR ยืนยันส่งของ / รับคืน
 - [x] เหรียญรางวัล (Badges)
 - [ ] Real-time ด้วย WebSocket
-- [ ] เก็บรูปบน Cloud Storage
 - [ ] Deploy ขึ้นเซิร์ฟเวอร์จริง (HTTPS)
 
 ## 📄 License
