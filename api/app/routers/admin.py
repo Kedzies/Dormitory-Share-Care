@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..deps import get_current_admin
-from ..services import borrowed_counts, log_activity, notify, notify_waitlist, total_points
+from ..services import borrowed_counts, items_changed, log_activity, notify, notify_waitlist, total_points
 from .items import item_out
 
 router = APIRouter(prefix="/admin", tags=["Admin (นิติบุคคล)"])
@@ -75,6 +75,7 @@ def create_item(
         owner_id=admin.id,
     )
     db.add(item)
+    items_changed(db)
     db.commit()
     db.refresh(item)
     return item_out(item, 0)
@@ -99,6 +100,7 @@ def update_item(
         if value is not None:
             setattr(item, field, value)
     notify_waitlist(db, item)  # เพิ่มจำนวน/ซ่อมเสร็จ → แจ้งคนที่รอคิว
+    items_changed(db)
     db.commit()
     db.refresh(item)
     return item_out(item, borrowed)
@@ -113,6 +115,7 @@ def delete_item(item_id: int, db: Session = Depends(get_db), admin: models.User 
             detail="ของชิ้นนี้มีประวัติการยืมแล้ว ลบไม่ได้ — ใช้ \"ปิดใช้งาน\" แทนเพื่อเก็บประวัติไว้",
         )
     db.delete(item)
+    items_changed(db)
     db.commit()
     return None
 
@@ -177,6 +180,7 @@ def mark_returned_by_admin(db: Session, record: models.BorrowRecord) -> None:
     notify(db, record.borrower_id, "✅", "นิติบุคคลบันทึกรับคืนแล้ว", record.item.name)
     log_activity(db, record.borrower_id, record.item.emoji, f"คืน{record.item.name} (บันทึกโดยนิติ)")
     notify_waitlist(db, record.item)
+    items_changed(db)
 
 
 # ---------------------------------------------------------------------------

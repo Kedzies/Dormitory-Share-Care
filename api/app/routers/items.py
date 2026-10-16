@@ -14,6 +14,7 @@ from ..services import (
     borrowed_counts,
     check_badges,
     item_availability,
+    items_changed,
     log_activity,
     notify_waitlist,
 )
@@ -123,6 +124,7 @@ def borrow_item(
         w.status = "done"
     log_activity(db, current_user.id, item.emoji, f"ยืม{item.name} {payload.duration_label}")
     check_badges(db, current_user.id)
+    items_changed(db)
     db.commit()
     db.refresh(record)
     return record
@@ -176,6 +178,7 @@ def return_item(
 
     notify_waitlist(db, record.item)
     check_badges(db, current_user.id)
+    items_changed(db)
     db.commit()
     db.refresh(record)
     result = schemas.BorrowRecordOut.model_validate(record)

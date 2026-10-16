@@ -589,6 +589,7 @@ async function api(path, { method = 'GET', body, form, auth = true } = {}){
 
 function handleSessionExpired(){
   authToken = null;
+  disconnectRealtime();
   localStorage.removeItem('dsc_token');
   state.page = 'auth';
   state.authError = 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่';
@@ -1782,6 +1783,7 @@ async function completeLogin(){
   user.room = me.username;
   user.name = me.full_name || '';
   user.isAdmin = !!me.is_admin;
+  connectRealtime();
   goto('home');
 }
 
@@ -1896,6 +1898,7 @@ document.body.addEventListener('click', async (e)=>{
     case 'logout':
       api('/logout', { method:'POST' }).catch(()=>{});
       authToken = null;
+      disconnectRealtime();
       localStorage.removeItem('dsc_token');
       resetAppData();
       state.page = 'auth'; state.authMode = 'login'; state.authError = null;
@@ -2184,9 +2187,60 @@ function bouncePoints(){
 const _origGoto = goto;
 goto = function(page){ _origGoto(page); if(page==='home') setTimeout(bouncePoints, 80); };
 
-/* เช็กแจ้งเตือนใหม่ทุก 30 วินาที (อัปเดตจุดแดงที่กระดิ่ง + แต้ม) */
+/* ===================== REAL-TIME (WebSocket) =====================
+   backend ส่งแจ้งเตือนมาทันทีที่เกิดขึ้น + บอกเมื่อจำนวนของว่างเปลี่ยน
+   หลุดเมื่อไหร่ต่อใหม่เอง ระหว่างนั้นใช้การเช็กทุก 30 วินาทีด้านล่างแทน */
+const rt = { ws: null, connected: false, retry: 0, timer: null, ping: null, refreshT: null };
+
+function connectRealtime(){
+  disconnectRealtime();
+  if(!authToken || typeof WebSocket === 'undefined') return;
+  const ws = new WebSocket(API_BASE_URL.replace(/^http/, 'ws') + '/ws');
+  rt.ws = ws;
+  ws.onopen = () => ws.send(JSON.stringify({ token: authToken }));   // token ส่งเป็นข้อความแรก ไม่ใส่ใน URL
+  ws.onmessage = (e) => {
+    let msg; try{ msg = JSON.parse(e.data); }catch(_){ return; }
+    if(msg.type === 'ready'){
+      rt.connected = true; rt.retry = 0;
+      rt.ping = setInterval(() => { if(ws.readyState === 1) ws.send('ping'); }, 25000);
+    }
+    if(msg.type === 'notification'){
+      unreadCount += 1; updateBell();
+      showToast(msg.title, msg.icon || '🔔');
+      scheduleRefresh(['home', 'notifications', 'deposit', 'lostfound', 'borrow', 'profile', 'admin']);
+    }
+    if(msg.type === 'items_changed') scheduleRefresh(['borrow', 'admin']);
+  };
+  ws.onclose = (e) => {
+    if(rt.ws !== ws) return;          // ถูกแทนที่ด้วยการเชื่อมต่อใหม่แล้ว
+    rt.connected = false; rt.ws = null;
+    clearInterval(rt.ping);
+    if(e.code === 4401 || !authToken) return;   // token ใช้ไม่ได้ / ออกจากระบบแล้ว — ไม่ต่อใหม่
+    const delay = Math.min(30000, 2000 * 2 ** rt.retry++);
+    rt.timer = setTimeout(connectRealtime, delay);
+  };
+}
+
+function disconnectRealtime(){
+  clearTimeout(rt.timer); clearInterval(rt.ping);
+  const ws = rt.ws;
+  rt.ws = null; rt.connected = false;
+  if(ws) try{ ws.close(); }catch(_){}
+}
+
+/** โหลดข้อมูลหน้าปัจจุบันใหม่ (รวมหลายเหตุการณ์ที่มาติดกันเป็นครั้งเดียว และไม่รบกวนตอนเปิดหน้าต่างกรอกข้อมูลอยู่) */
+function scheduleRefresh(pages){
+  if(!pages.includes(state.page)) return;
+  clearTimeout(rt.refreshT);
+  rt.refreshT = setTimeout(() => {
+    if(document.getElementById('modalOverlay').classList.contains('open')) return;
+    loadPage(state.page);
+  }, 400);
+}
+
+/* สำรอง: ถ้า WebSocket ยังไม่เชื่อมต่อ เช็กแจ้งเตือนใหม่ทุก 30 วินาที (อัปเดตจุดแดงที่กระดิ่ง + แต้ม) */
 setInterval(async ()=>{
-  if(!authToken || state.page === 'auth' || document.hidden) return;
+  if(!authToken || state.page === 'auth' || document.hidden || rt.connected) return;
   try{
     applySummary(await api('/summary/me'));
     updateBell();

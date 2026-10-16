@@ -9,6 +9,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import models
+from .realtime import queue_items_changed, queue_notification
 
 # ---- กติกาแต้มความดี ----
 POINTS_RETURN_ON_TIME = 10      # คืนของส่วนกลางตรงเวลา
@@ -29,6 +30,12 @@ def award_points(db: Session, user_id: int, amount: int, reason: str) -> None:
 
 def notify(db: Session, user_id: int, icon: str, title: str, body: str = "") -> None:
     db.add(models.Notification(user_id=user_id, icon=icon, title=title, body=body))
+    queue_notification(db, user_id, icon, title, body)  # ส่งแบบ real-time หลัง commit
+
+
+def items_changed(db: Session) -> None:
+    """จำนวนของว่างเปลี่ยน → หน้ายืม-คืนของทุกคนอัปเดตทันที (ส่งหลัง commit)"""
+    queue_items_changed(db)
 
 
 def log_activity(db: Session, user_id: int, icon: str, text: str) -> None:

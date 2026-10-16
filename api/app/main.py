@@ -7,6 +7,7 @@ from sqlalchemy import inspect, text
 
 from . import models
 from .database import Base, SessionLocal, engine
+from .realtime import router as realtime_router
 from .routers import admin, auth, community, deposits, items, lostfound, scan, users
 from .security import hash_password, verify_password
 
@@ -124,6 +125,7 @@ app.include_router(lostfound.router)
 app.include_router(community.router)
 app.include_router(admin.router)
 app.include_router(scan.router)
+app.include_router(realtime_router)
 
 
 @app.get("/health", tags=["Health"])

@@ -3,13 +3,13 @@
 ระบบเว็บแอปสำหรับหอพัก — **ยืม-คืนของส่วนกลาง, ฝากของ, ของหายได้คืน และแต้มความดี (Karma Points)** พร้อม **แผงควบคุมสำหรับนิติบุคคล**
 ออกแบบแบบ Mobile-First (บนจอคอมเปลี่ยนเป็นเมนูด้านซ้ายอัตโนมัติ) ทุกฟีเจอร์ทำงานจริงกับฐานข้อมูล PostgreSQL ผ่าน REST API (FastAPI) และรวม Frontend + Backend ไว้ใน repo เดียว
 
-![status](https://img.shields.io/badge/core%20features-complete-brightgreen) ![progress](https://img.shields.io/badge/overall-%E2%89%8889%25-green)
+![status](https://img.shields.io/badge/core%20features-complete-brightgreen) ![progress](https://img.shields.io/badge/overall-%E2%89%8894%25-brightgreen)
 
 ---
 
 ## 📊 ความคืบหน้าของโปรเจกต์
 
-**ฟีเจอร์หลักทั้งหมดทำงานจริงแล้ว** · ภาพรวมรวมงานเสริมใน Roadmap ≈ **89%** (16 จาก 18 งาน)
+**ฟีเจอร์หลักทั้งหมดทำงานจริงแล้ว** · ภาพรวมรวมงานเสริมใน Roadmap ≈ **94%** (17 จาก 18 งาน)
 
 | ส่วน | สถานะ |
 |---|---|
@@ -29,7 +29,7 @@
 | ช่องเลือกวัน-เวลาแบบปฏิทิน | ✅ เสร็จ |
 | แผงควบคุมนิติบุคคล (Admin role) | ✅ เสร็จ |
 | Docker Compose (db + pgAdmin + api) | ✅ เสร็จ |
-| Real-time ด้วย WebSocket (ตอนนี้เช็กทุก 30 วินาที) | ❌ ยังไม่ทำ |
+| แจ้งเตือน real-time ด้วย WebSocket (หลุดแล้วต่อใหม่เอง) | ✅ เสร็จ |
 | Deploy ขึ้นเซิร์ฟเวอร์จริง (HTTPS) | ❌ ยังไม่ทำ |
 
 ---
@@ -47,7 +47,7 @@
 - 🪙 **แต้มความดี** — คำนวณจริงจากสมุดบัญชีแต้มในฐานข้อมูล + อันดับ "คนดีศรีหอพัก" ประจำเดือน
 - 🏅 **เหรียญรางวัล** — 8 เหรียญในหน้าโปรไฟล์ เหรียญที่ได้แล้วมีขอบทองพร้อมวันที่ได้รับ เหรียญที่ยังไม่ได้มีแถบความคืบหน้า และมีแจ้งเตือนเมื่อได้เหรียญใหม่
 - 📅 **เลือกวัน-เวลาจากปฏิทิน** — ช่องเวลานัดรับของฝาก / เวลาที่เจอของ / เวลาที่ของหาย แตะแล้วมีปฏิทินขึ้นมาให้เลือก (กันเลือกเวลาที่เป็นไปไม่ได้ เช่น เจอของในอนาคต)
-- 🔔 **แจ้งเตือน + ประวัติ** — แจ้งเตือนจริงเมื่อมีของฝาก / คำขอรับของ / ได้แต้ม / ได้เหรียญ / ของว่างแล้ว / ใกล้ครบกำหนดคืน / ประกาศจากนิติ และบันทึกทุกกิจกรรมไว้ในหน้าโปรไฟล์
+- 🔔 **แจ้งเตือน + ประวัติ** — แจ้งเตือน**ทันที**ผ่าน WebSocket (ไม่ต้องรีเฟรช, หน้ายืม-คืนอัปเดตจำนวนของว่างสดๆ) แจ้งเตือนจริงเมื่อมีของฝาก / คำขอรับของ / ได้แต้ม / ได้เหรียญ / ของว่างแล้ว / ใกล้ครบกำหนดคืน / ประกาศจากนิติ และบันทึกทุกกิจกรรมไว้ในหน้าโปรไฟล์
 
 ### สำหรับนิติบุคคล (เมนู "นิติ" เห็นเฉพาะบัญชีนิติ)
 
@@ -88,7 +88,7 @@
 
 ![Technology stack diagram](tech-stack.png)
 
-Frontend เป็น mobile-first SPA (HTML/CSS/JS ล้วน) คุยกับ FastAPI ผ่าน REST/JSON โดยใช้ JWT ยืนยันตัวตน แล้วเก็บข้อมูลใน PostgreSQL — ทั้งหมดรันผ่าน Docker Compose โดย backend แบ่งเป็นโมดูลตามฟีเจอร์ใน `routers/` และมีสิทธิ์ 2 ระดับ: ผู้พักอาศัย และนิติบุคคล (`is_admin`)
+Frontend เป็น mobile-first SPA (HTML/CSS/JS ล้วน) คุยกับ FastAPI ผ่าน REST/JSON โดยใช้ JWT ยืนยันตัวตน และรับแจ้งเตือนทันทีผ่าน WebSocket แล้วเก็บข้อมูลใน PostgreSQL — ทั้งหมดรันผ่าน Docker Compose โดย backend แบ่งเป็นโมดูลตามฟีเจอร์ใน `routers/` และมีสิทธิ์ 2 ระดับ: ผู้พักอาศัย และนิติบุคคล (`is_admin`)
 
 ### แนวทางขยายระบบในอนาคต
 
@@ -122,6 +122,7 @@ Frontend เป็น mobile-first SPA (HTML/CSS/JS ล้วน) คุยก�
 | Borrowing | `GET /items` `POST /items/{id}/borrow` `GET /borrow/me` `POST /borrow/{id}/return` `POST/DELETE /items/{id}/waitlist` |
 | Deposits | `GET /deposits/me` `POST /deposits` `POST /deposits/{id}/collect` `POST /deposits/{id}/cancel` |
 | QR Scan | `POST /scan` (รหัส `DP-` = ยืนยันส่งของฝาก, `BR-` = นิติบันทึกรับคืน) |
+| Realtime | `WS /ws` — ส่ง `{"token": "<JWT>"}` เป็นข้อความแรก แล้วรับ `notification` / `items_changed` |
 | Lost & Found | `GET/POST /found` `POST /found/{id}/claims` `GET /claims/incoming` `POST /claims/{id}/approve` `POST /claims/{id}/reject` `GET/POST /lost` `POST /lost/{id}/resolve` |
 | Points & Alerts | `GET /summary/me` `GET /points/me` `GET /leaderboard` `GET /badges/me` `GET /notifications` `POST /notifications/read-all` `GET /activity/me` |
 | Admin (นิติ) | `GET /admin/overview` `GET/POST /admin/items` `PUT/DELETE /admin/items/{id}` `GET /admin/borrows` `POST /admin/borrows/{id}/return` `GET /admin/deposits` `GET /admin/users` `POST /admin/users/{id}/active` `POST /admin/announcements` |
@@ -147,6 +148,7 @@ Frontend เป็น mobile-first SPA (HTML/CSS/JS ล้วน) คุยก�
 │       ├── security.py           # JWT + hash รหัสผ่าน
 │       ├── deps.py               # get_current_user / get_current_admin
 │       ├── services.py           # แต้ม, แจ้งเตือน, กิจกรรม, จำนวนของว่าง, คิวรอ, เหรียญ (ใช้ร่วมกันทุกฟีเจอร์)
+│       ├── realtime.py           # WebSocket: ส่งแจ้งเตือน / จำนวนของว่างทันทีหลัง commit
 │       └── routers/
 │           ├── auth.py
 │           ├── users.py
@@ -241,7 +243,7 @@ docker compose down -v    # หยุด + ล้างข้อมูลทั�
 
 - **กล้องสแกน QR ใช้ได้เฉพาะ `https://` หรือ `localhost`** — ถ้าเปิดจากมือถือผ่าน IP ในวง LAN (เช่น `http://192.168.x.x:5500`) ต้องพิมพ์รหัสแทน จะใช้กล้องบนมือถือได้เมื่อ deploy แบบ HTTPS
 - รูปภาพเก็บในฐานข้อมูลแบบ base64 (ย่อเหลือด้านยาวสุด 900px ก่อนส่ง) — พอสำหรับต้นแบบ แต่ระบบจริงควรย้ายไป Cloud Storage
-- การแจ้งเตือนอัปเดตทุก 30 วินาที ไม่ใช่ real-time
+- การเชื่อมต่อ WebSocket เก็บไว้ในหน่วยความจำของ backend process เดียว — ถ้าขยายเป็นหลาย worker / หลายเครื่อง ต้องใช้ Redis pub/sub กระจายข้อความ
 - คิวรอของว่างเป็นการ "แจ้งเตือนตามลำดับ" ไม่ได้กันของไว้ให้ — คนที่ได้แจ้งเตือนต้องรีบกดยืมเอง
 - token ที่ logout แล้วเก็บไว้ในหน่วยความจำ — รีสตาร์ต backend แล้ว token เก่าที่ยังไม่หมดอายุจะใช้ได้อีกครั้ง (ระบบจริงควรใช้ Redis)
 - ไลบรารี QR โหลดจาก CDN — ถ้าออฟไลน์จะแสดงเป็นรหัสตัวอักษรแทน และสแกนด้วยกล้องไม่ได้ (พิมพ์รหัสได้ตามปกติ)
@@ -262,7 +264,7 @@ docker compose down -v    # หยุด + ล้างข้อมูลทั�
 - [x] ช่องเลือกวัน-เวลาแบบปฏิทิน
 - [x] สแกน QR ยืนยันส่งของ / รับคืน
 - [x] เหรียญรางวัล (Badges)
-- [ ] Real-time ด้วย WebSocket
+- [x] แจ้งเตือน real-time ด้วย WebSocket
 - [ ] Deploy ขึ้นเซิร์ฟเวอร์จริง (HTTPS)
 
 ## 📄 License
