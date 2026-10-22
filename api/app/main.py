@@ -3,6 +3,7 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from sqlalchemy import inspect, text
 
 from . import models
@@ -131,3 +132,15 @@ app.include_router(realtime_router)
 @app.get("/health", tags=["Health"])
 def health_check():
     return {"status": "ok"}
+
+
+# หน้าเว็บ: ถ้ามีไฟล์ frontend อยู่ใน container (ตอน deploy / docker compose) ให้ backend เสิร์ฟเองด้วย
+# → ทั้งระบบเหลือลิงก์เดียว และหน้าเว็บเรียก API ที่ origin เดียวกันได้เลย
+FRONTEND_FILE = os.getenv("FRONTEND_FILE", "/app/static/index.html")
+
+if os.path.isfile(FRONTEND_FILE):
+
+    @app.get("/", include_in_schema=False)
+    @app.get("/dormitory-share-care.html", include_in_schema=False)
+    def frontend():
+        return FileResponse(FRONTEND_FILE, media_type="text/html", headers={"Cache-Control": "no-cache"})

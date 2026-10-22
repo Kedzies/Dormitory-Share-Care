@@ -548,7 +548,9 @@ let uploads = {};   // รูปที่ผู้ใช้เลือก (ย�
 
 /* ===================== API ===================== */
 // เปลี่ยนค่านี้ถ้า backend รันอยู่คนละ host/port หรือ deploy ขึ้นเซิร์ฟเวอร์จริงแล้ว
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = (location.protocol === 'file:' || location.port === '5500')
+  ? "http://localhost:8000"   // เปิดหน้าเว็บด้วย python -m http.server 5500 ตอนพัฒนา
+  : location.origin;          // เปิดผ่าน backend (docker compose / Render) — API อยู่ที่เดียวกัน
 let authToken = localStorage.getItem('dsc_token') || null;
 
 function parseApiError(data, fallback){

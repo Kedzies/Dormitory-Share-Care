@@ -41,6 +41,7 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      FRONTEND_FILE: /frontend/index.html
     ports:
       - "8000:8000"
     depends_on:
@@ -48,6 +49,7 @@ services:
         condition: service_healthy
     volumes:
       - ./api:/app
+      - ./dormitory-share-care.html:/frontend/index.html:ro
 
 volumes:
   db_data:

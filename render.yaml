@@ -1,0 +1,26 @@
+# Render Blueprint — Render อ่านไฟล์นี้แล้วสร้างเว็บ + ฐานข้อมูลให้อัตโนมัติ
+# วิธีใช้: render.com → New → Blueprint → เลือก repo นี้ → ใส่ ADMIN_PASSWORD → Apply
+services:
+  - type: web
+    name: dormitory-share-care
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: dormitory-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true          # Render สุ่มค่าให้เอง
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "1440"                # ล็อกอินค้างได้ 1 วัน
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false                  # Render จะถามตอนสร้าง — ตั้งรหัสนิติที่เดายาก
+
+databases:
+  - name: dormitory-db
+    plan: free
