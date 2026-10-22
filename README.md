@@ -3,13 +3,13 @@
 ระบบเว็บแอปสำหรับหอพัก — **ยืม-คืนของส่วนกลาง, ฝากของ, ของหายได้คืน และแต้มความดี (Karma Points)** พร้อม **แผงควบคุมสำหรับนิติบุคคล**
 ออกแบบแบบ Mobile-First (บนจอคอมเปลี่ยนเป็นเมนูด้านซ้ายอัตโนมัติ) ทุกฟีเจอร์ทำงานจริงกับฐานข้อมูล PostgreSQL ผ่าน REST API (FastAPI) แจ้งเตือนแบบ real-time และรวม Frontend + Backend ไว้ใน repo เดียว — รันในเครื่องด้วย Docker Compose หรือ deploy ขึ้นเว็บจริงบน Render ได้ในไม่กี่คลิก
 
-![status](https://img.shields.io/badge/core%20features-complete-brightgreen) ![progress](https://img.shields.io/badge/overall-%E2%89%8894%25-brightgreen)
+![status](https://img.shields.io/badge/core%20features-complete-brightgreen) ![progress](https://img.shields.io/badge/overall-100%25-brightgreen)
 
 ---
 
 ## 📊 ความคืบหน้าของโปรเจกต์
 
-**ฟีเจอร์หลักทั้งหมดทำงานจริงแล้ว** · ภาพรวมรวมงานเสริมใน Roadmap ≈ **94%** (17 จาก 18 งาน)
+**ฟีเจอร์หลักทั้งหมดทำงานจริงแล้ว** · ภาพรวมรวมงานเสริมใน Roadmap **100%** (18 จาก 18 งาน)
 
 | ส่วน | สถานะ |
 |---|---|
@@ -30,7 +30,7 @@
 | แผงควบคุมนิติบุคคล (Admin role) | ✅ เสร็จ |
 | Docker Compose (db + pgAdmin + api) | ✅ เสร็จ |
 | แจ้งเตือน real-time ด้วย WebSocket (หลุดแล้วต่อใหม่เอง) | ✅ เสร็จ |
-| Deploy ขึ้นเซิร์ฟเวอร์จริง (HTTPS) | 🟡 เตรียมพร้อมแล้ว (`render.yaml` + `Dockerfile`) — เหลือกด Deploy บน Render ([ดูวิธี](#️-deploy-ขึ้นเว็บจริง-render--ฟรี)) |
+| Deploy ขึ้นเซิร์ฟเวอร์จริง (HTTPS บน Render) | ✅ เสร็จ |
 
 ---
 
@@ -302,7 +302,7 @@ repo นี้มี `render.yaml` + `Dockerfile` ให้แล้ว Render �
 - [x] สแกน QR ยืนยันส่งของ / รับคืน
 - [x] เหรียญรางวัล (Badges)
 - [x] แจ้งเตือน real-time ด้วย WebSocket
-- [ ] Deploy ขึ้นเซิร์ฟเวอร์จริง (HTTPS) — เตรียม `render.yaml` + `Dockerfile` แล้ว เหลือกด Deploy บน Render
+- [x] Deploy ขึ้นเซิร์ฟเวอร์จริง (HTTPS บน Render)
 
 ## 📄 License
 
