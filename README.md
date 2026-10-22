@@ -1,7 +1,7 @@
 # 🏠 Dormitory Share & Care
 
 ระบบเว็บแอปสำหรับหอพัก — **ยืม-คืนของส่วนกลาง, ฝากของ, ของหายได้คืน และแต้มความดี (Karma Points)** พร้อม **แผงควบคุมสำหรับนิติบุคคล**
-ออกแบบแบบ Mobile-First (บนจอคอมเปลี่ยนเป็นเมนูด้านซ้ายอัตโนมัติ) ทุกฟีเจอร์ทำงานจริงกับฐานข้อมูล PostgreSQL ผ่าน REST API (FastAPI) และรวม Frontend + Backend ไว้ใน repo เดียว
+ออกแบบแบบ Mobile-First (บนจอคอมเปลี่ยนเป็นเมนูด้านซ้ายอัตโนมัติ) ทุกฟีเจอร์ทำงานจริงกับฐานข้อมูล PostgreSQL ผ่าน REST API (FastAPI) แจ้งเตือนแบบ real-time และรวม Frontend + Backend ไว้ใน repo เดียว — รันในเครื่องด้วย Docker Compose หรือ deploy ขึ้นเว็บจริงบน Render ได้ในไม่กี่คลิก
 
 ![status](https://img.shields.io/badge/core%20features-complete-brightgreen) ![progress](https://img.shields.io/badge/overall-%E2%89%8894%25-brightgreen)
 
@@ -30,7 +30,7 @@
 | แผงควบคุมนิติบุคคล (Admin role) | ✅ เสร็จ |
 | Docker Compose (db + pgAdmin + api) | ✅ เสร็จ |
 | แจ้งเตือน real-time ด้วย WebSocket (หลุดแล้วต่อใหม่เอง) | ✅ เสร็จ |
-| Deploy ขึ้นเซิร์ฟเวอร์จริง (HTTPS) | ❌ ยังไม่ทำ |
+| Deploy ขึ้นเซิร์ฟเวอร์จริง (HTTPS) | 🟡 เตรียมพร้อมแล้ว (`render.yaml` + `Dockerfile`) — เหลือกด Deploy บน Render ([ดูวิธี](#️-deploy-ขึ้นเว็บจริง-render--ฟรี)) |
 
 ---
 
@@ -88,7 +88,12 @@
 
 ![Technology stack diagram](tech-stack.png)
 
-Frontend เป็น mobile-first SPA (HTML/CSS/JS ล้วน) คุยกับ FastAPI ผ่าน REST/JSON โดยใช้ JWT ยืนยันตัวตน และรับแจ้งเตือนทันทีผ่าน WebSocket แล้วเก็บข้อมูลใน PostgreSQL — ทั้งหมดรันผ่าน Docker Compose โดย backend แบ่งเป็นโมดูลตามฟีเจอร์ใน `routers/` และมีสิทธิ์ 2 ระดับ: ผู้พักอาศัย และนิติบุคคล (`is_admin`)
+Frontend เป็น mobile-first SPA (HTML/CSS/JS ล้วน) คุยกับ FastAPI ผ่าน REST/JSON โดยใช้ JWT ยืนยันตัวตน และรับแจ้งเตือนทันทีผ่าน WebSocket แล้วเก็บข้อมูลใน PostgreSQL — backend แบ่งเป็นโมดูลตามฟีเจอร์ใน `routers/` มีสิทธิ์ 2 ระดับ: ผู้พักอาศัย และนิติบุคคล (`is_admin`) และ**เสิร์ฟหน้าเว็บเองด้วย** ทำให้ทั้งระบบใช้ลิงก์เดียว (หน้าเว็บเรียก API ที่ origin เดียวกันอัตโนมัติ)
+
+| สภาพแวดล้อม | รันยังไง | เปิดที่ |
+|---|---|---|
+| ในเครื่อง | `docker compose up -d` (db + pgAdmin + api) | http://localhost:8000 |
+| เว็บจริง | Render อ่าน `render.yaml` → build จาก `Dockerfile` + สร้าง PostgreSQL ให้ | `https://<ชื่อ-service>.onrender.com` |
 
 ### แนวทางขยายระบบในอนาคต
 
@@ -131,14 +136,16 @@ Frontend เป็น mobile-first SPA (HTML/CSS/JS ล้วน) คุยก�
 
 **Frontend** — Vanilla HTML / CSS / JavaScript ไฟล์เดียว (ไม่มี framework, ไม่ต้อง build) · ฟอนต์ IBM Plex Sans Thai · ไอคอนและภาพประกอบเป็น SVG ในไฟล์ · สร้าง QR ด้วย [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) · อ่าน QR จากกล้องด้วย [jsQR](https://github.com/cozmo/jsQR)
 
-**Backend** — FastAPI · SQLAlchemy ORM · PostgreSQL 16 · JWT (python-jose) + bcrypt · Docker Compose
+**Backend** — FastAPI · SQLAlchemy ORM · PostgreSQL 16 · JWT (python-jose) + bcrypt · WebSocket
+
+**Infrastructure** — Docker / Docker Compose (ในเครื่อง) · Render Blueprint (deploy ฟรี พร้อม HTTPS)
 
 ## 📁 โครงสร้างไฟล์
 
 ```
 .
 ├── api/                          # Backend (FastAPI)
-│   ├── Dockerfile
+│   ├── Dockerfile                # image สำหรับ docker compose ในเครื่อง
 │   ├── requirements.txt
 │   └── app/
 │       ├── main.py               # entrypoint: รวม router, CORS, สร้างตาราง, ข้อมูลเริ่มต้น, บัญชีนิติ
@@ -160,7 +167,10 @@ Frontend เป็น mobile-first SPA (HTML/CSS/JS ล้วน) คุยก�
 │           └── admin.py          # แผงควบคุมนิติบุคคล
 ├── .env.example
 ├── .gitignore
-├── docker-compose.yml
+├── .dockerignore                 # กันไม่ให้ .env / ไฟล์ขยะติดไปกับ image
+├── docker-compose.yml            # รันในเครื่อง: db + pgAdmin + api
+├── Dockerfile                    # image สำหรับ deploy: api + หน้าเว็บในตัวเดียว
+├── render.yaml                   # Render Blueprint: สร้างเว็บ + ฐานข้อมูลอัตโนมัติ
 ├── dormitory-share-care.html     # Frontend ทั้งหมด
 ├── tech-stack.png
 ├── microservices-evolution.png
@@ -211,7 +221,7 @@ python -m http.server 5500
 
 ### 4. ลองใช้งานแบบ 2 ห้อง + นิติ (แนะนำสำหรับเดโม)
 
-เปิดเบราว์เซอร์ปกติ 1 หน้าต่าง + หน้าต่างไม่ระบุตัวตน (Incognito) อีก 1 หน้าต่าง แล้วสมัครคนละห้อง เช่น `B-304` กับ `B-201` และล็อกอินบัญชีนิติในอีกเบราว์เซอร์หนึ่ง
+เปิด http://localhost:8000 (หรือลิงก์ Render) ในเบราว์เซอร์ปกติ 1 หน้าต่าง + หน้าต่างไม่ระบุตัวตน (Incognito) อีก 1 หน้าต่าง แล้วสมัครคนละห้อง เช่น `B-304` กับ `B-201` และล็อกอินบัญชีนิติในอีกเบราว์เซอร์หนึ่ง
 
 1. **นิติ** → แท็บ คลังของ → ตั้งจำนวนร่มเป็น 5 ชิ้น, เพิ่มของใหม่ 1 ชิ้นจำนวน 1
 2. **B-304** ยืมของชิ้นใหม่ → **B-201** เห็นว่า "ถูกยืมหมด" → กด "แจ้งเตือนเมื่อว่าง" (คิวที่ 1)
@@ -241,7 +251,14 @@ repo นี้มี `render.yaml` + `Dockerfile` ให้แล้ว Render �
 
 หลังจากนั้นทุกครั้งที่ `git push` ขึ้น `main` Render จะ deploy เวอร์ชันใหม่ให้อัตโนมัติ
 
-**ข้อจำกัดของแพ็กเกจฟรี:** ถ้าไม่มีคนเข้า 15 นาที เซิร์ฟเวอร์จะหลับ — คนแรกที่เปิดต้องรอประมาณ 1 นาที (ก่อนนำเสนอให้เปิดลิงก์ทิ้งไว้สักครั้ง) · ฐานข้อมูลฟรีมีอายุ 30 วัน (หมดแล้วสร้างใหม่ได้ ข้อมูลเดิมจะหาย)
+**ข้อจำกัดของแพ็กเกจฟรี:**
+
+- ถ้าไม่มีคนเข้า 15 นาที เซิร์ฟเวอร์จะหลับ — คนแรกที่เปิดต้องรอประมาณ 1 นาที (**ก่อนนำเสนอ 5 นาทีให้เปิดลิงก์เองสักครั้ง**)
+- ฐานข้อมูลฟรีมีอายุ 30 วัน — หมดแล้วสร้างใหม่ได้แต่ข้อมูลเดิมจะหาย (ถ้าใช้นำเสนอ ให้ deploy ใกล้วันจริง)
+
+**ค่าที่ Render ตั้งให้จาก `render.yaml`:** `SECRET_KEY` สุ่มให้อัตโนมัติ · `ACCESS_TOKEN_EXPIRE_MINUTES=1440` (ล็อกอินค้างได้ 1 วัน) · `ADMIN_USERNAME=admin` · `ADMIN_PASSWORD` ตามที่กรอกตอนสร้าง (แก้ได้ที่ Render → service → **Environment** แล้วกด **Save, rebuild, and deploy**)
+
+**ทำ QR สำหรับแปะโปสเตอร์:** นำลิงก์ `https://….onrender.com` ไปสร้าง QR — สแกนแล้วเข้าหน้าแอปได้ทันที (กล้องสแกน QR ในแอปใช้ได้เพราะเป็น HTTPS)
 
 ## 🧰 แก้ปัญหาที่พบบ่อย
 
@@ -250,14 +267,18 @@ repo นี้มี `render.yaml` + `Dockerfile` ให้แล้ว Render �
 | `docker compose` ขึ้น `failed to read .env: ... key cannot contain a space` | ใน `.env` มีบรรทัดที่ไม่ใช่ `ชื่อ=ค่า` (เช่น เผลอวางคำสั่ง `docker compose up -d` ลงไป) — ลบบรรทัดนั้นออก |
 | เข้าหน้านิติไม่ได้ / ไม่เห็นเมนู "นิติ" | ล็อกอินด้วย `ADMIN_USERNAME` / `ADMIN_PASSWORD` ใน `.env` (ไม่ใช่บัญชีที่สมัครเอง) · ถ้า `.env` ไม่มี 2 บรรทัดนี้ (สร้าง `.env` จากเวอร์ชันเก่า) ให้คัดลอกจาก `.env.example` |
 | แก้ `.env` แล้วไม่มีผล | ต้องรัน `docker compose up -d` (ไม่ใช่ `restart`) เพื่อให้ container อ่าน `.env` ใหม่ |
-| สมัครสมาชิก / ล็อกอินขึ้น "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้" | backend ยังไม่รัน (เปิด Docker Desktop แล้ว `docker compose up -d`) หรือเปิดไฟล์ HTML ด้วยการดับเบิลคลิก — ต้องเปิดผ่าน `http://localhost:5500/...` |
+| สมัครสมาชิก / ล็อกอินขึ้น "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้" | backend ยังไม่รัน (เปิด Docker Desktop แล้ว `docker compose up -d`) หรือเปิดไฟล์ HTML ด้วยการดับเบิลคลิก — ให้เปิดผ่าน http://localhost:8000 |
 | สมัครแล้วขึ้น "Username นี้ถูกใช้งานแล้ว" | หมายเลขห้องนี้มีคนสมัครแล้ว ใช้เลขห้องอื่น (username อย่างน้อย 3 ตัวอักษร, รหัสผ่านอย่างน้อย 6 ตัวอักษร) |
 | เปิดจากเครื่องอื่นในวง LAN แล้วใช้งานไม่ได้ | เปิดผ่าน `http://<IP เครื่องที่รัน backend>:8000` (ไม่ใช่พอร์ต 5500) — หน้าเว็บจะเรียก API ที่เครื่องเดียวกันให้เอง |
 | ตั้งชื่อ container ชนกับโปรเจกต์อื่น (`project_db is already in use`) | มีโปรเจกต์อื่นใช้ชื่อ container เดียวกันอยู่ — หยุดโปรเจกต์นั้นก่อน (`docker rm -f project_db project_api project_pgadmin`) |
+| **Render:** เปิดลิงก์แล้วโหลดนานมาก | เซิร์ฟเวอร์ฟรีหลับอยู่ — รอประมาณ 1 นาทีแล้วจะเปิดได้ตามปกติ |
+| **Render:** ล็อกอินนิติไม่ได้ | เช็ก `ADMIN_PASSWORD` ที่ Render → service → **Environment** แก้แล้วกด **Save, rebuild, and deploy** |
+| **Render:** build ล้มเหลว / ขึ้น Deploy failed | เปิดแท็บ **Logs** ใน Render ดูข้อความ error · เช็กว่า push `Dockerfile` และ `render.yaml` ขึ้น GitHub แล้ว |
+| **Render:** ข้อมูลหายหมด | ฐานข้อมูลฟรีครบ 30 วันแล้ว — สร้าง Blueprint ใหม่ (บัญชีนิติและของเริ่มต้นจะถูกสร้างให้อัตโนมัติ) |
 
 ## ⚠️ ข้อจำกัดที่ทราบ
 
-- **กล้องสแกน QR ใช้ได้เฉพาะ `https://` หรือ `localhost`** — ถ้าเปิดจากมือถือผ่าน IP ในวง LAN (เช่น `http://192.168.x.x:5500`) ต้องพิมพ์รหัสแทน จะใช้กล้องบนมือถือได้เมื่อ deploy แบบ HTTPS
+- **กล้องสแกน QR ใช้ได้เฉพาะ `https://` หรือ `localhost`** — บนลิงก์ Render ใช้ได้ปกติ แต่ถ้าเปิดจากมือถือผ่าน IP ในวง LAN (เช่น `http://192.168.x.x:8000`) ต้องพิมพ์รหัสแทน
 - รูปภาพเก็บในฐานข้อมูลแบบ base64 (ย่อเหลือด้านยาวสุด 900px ก่อนส่ง) — พอสำหรับต้นแบบ แต่ระบบจริงควรย้ายไป Cloud Storage
 - การเชื่อมต่อ WebSocket เก็บไว้ในหน่วยความจำของ backend process เดียว — ถ้าขยายเป็นหลาย worker / หลายเครื่อง ต้องใช้ Redis pub/sub กระจายข้อความ
 - คิวรอของว่างเป็นการ "แจ้งเตือนตามลำดับ" ไม่ได้กันของไว้ให้ — คนที่ได้แจ้งเตือนต้องรีบกดยืมเอง
@@ -281,7 +302,7 @@ repo นี้มี `render.yaml` + `Dockerfile` ให้แล้ว Render �
 - [x] สแกน QR ยืนยันส่งของ / รับคืน
 - [x] เหรียญรางวัล (Badges)
 - [x] แจ้งเตือน real-time ด้วย WebSocket
-- [ ] Deploy ขึ้นเซิร์ฟเวอร์จริง (HTTPS)
+- [ ] Deploy ขึ้นเซิร์ฟเวอร์จริง (HTTPS) — เตรียม `render.yaml` + `Dockerfile` แล้ว เหลือกด Deploy บน Render
 
 ## 📄 License
 
