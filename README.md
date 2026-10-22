@@ -5,6 +5,12 @@
 
 ![status](https://img.shields.io/badge/core%20features-complete-brightgreen) ![progress](https://img.shields.io/badge/overall-100%25-brightgreen)
 
+### 🌐 ลองใช้งานจริง: **https://dormitory-share-care.onrender.com**
+
+<img src="qr-code.png" alt="QR code ไปยัง https://dormitory-share-care.onrender.com" width="180">
+
+สแกน QR หรือเปิดลิงก์ แล้วกด **สมัครสมาชิก** ด้วยหมายเลขห้องใดก็ได้ (เซิร์ฟเวอร์ฟรี ถ้าไม่มีคนใช้สักพักจะหลับ — ครั้งแรกอาจรอประมาณ 1 นาที)
+
 ---
 
 ## 📊 ความคืบหน้าของโปรเจกต์
@@ -172,6 +178,7 @@ Frontend เป็น mobile-first SPA (HTML/CSS/JS ล้วน) คุยก�
 ├── Dockerfile                    # image สำหรับ deploy: api + หน้าเว็บในตัวเดียว
 ├── render.yaml                   # Render Blueprint: สร้างเว็บ + ฐานข้อมูลอัตโนมัติ
 ├── dormitory-share-care.html     # Frontend ทั้งหมด
+├── qr-code.png                   # QR ไปยังเว็บจริงบน Render
 ├── tech-stack.png
 ├── microservices-evolution.png
 └── README.md
@@ -239,26 +246,15 @@ docker compose down       # หยุด container เก็บข้อมู�
 docker compose down -v    # หยุด + ล้างข้อมูลทั้งหมด
 ```
 
-## ☁️ Deploy ขึ้นเว็บจริง (Render — ฟรี)
+## ☁️ Deploy
 
-repo นี้มี `render.yaml` + `Dockerfile` ให้แล้ว Render จะสร้างเว็บ + ฐานข้อมูลให้อัตโนมัติ ได้ลิงก์ HTTPS ถาวร ไม่ต้องเปิดคอมทิ้งไว้
+ระบบ deploy ใช้งานจริงบน **Render** (แพ็กเกจฟรี) ที่ **https://dormitory-share-care.onrender.com**
 
-1. เข้า **https://render.com** → Sign up ด้วย GitHub
-2. กด **New → Blueprint** → เลือก repo `Dormitory-Share-Care`
-3. Render จะถาม `ADMIN_PASSWORD` → ตั้งรหัสนิติที่เดายาก → กด **Apply**
-4. รอ build ประมาณ 5–10 นาที จนสถานะเป็น **Live**
-5. เปิดลิงก์ที่ได้ (เช่น `https://dormitory-share-care.onrender.com`) → ล็อกอินนิติด้วย `admin` + รหัสที่ตั้งไว้
-
-หลังจากนั้นทุกครั้งที่ `git push` ขึ้น `main` Render จะ deploy เวอร์ชันใหม่ให้อัตโนมัติ
-
-**ข้อจำกัดของแพ็กเกจฟรี:**
-
-- ถ้าไม่มีคนเข้า 15 นาที เซิร์ฟเวอร์จะหลับ — คนแรกที่เปิดต้องรอประมาณ 1 นาที (**ก่อนนำเสนอ 5 นาทีให้เปิดลิงก์เองสักครั้ง**)
-- ฐานข้อมูลฟรีมีอายุ 30 วัน — หมดแล้วสร้างใหม่ได้แต่ข้อมูลเดิมจะหาย (ถ้าใช้นำเสนอ ให้ deploy ใกล้วันจริง)
-
-**ค่าที่ Render ตั้งให้จาก `render.yaml`:** `SECRET_KEY` สุ่มให้อัตโนมัติ · `ACCESS_TOKEN_EXPIRE_MINUTES=1440` (ล็อกอินค้างได้ 1 วัน) · `ADMIN_USERNAME=admin` · `ADMIN_PASSWORD` ตามที่กรอกตอนสร้าง (แก้ได้ที่ Render → service → **Environment** แล้วกด **Save, rebuild, and deploy**)
-
-**ทำ QR สำหรับแปะโปสเตอร์:** นำลิงก์ `https://….onrender.com` ไปสร้าง QR — สแกนแล้วเข้าหน้าแอปได้ทันที (กล้องสแกน QR ในแอปใช้ได้เพราะเป็น HTTPS)
+- **Infrastructure as Code** — `render.yaml` กำหนดให้ Render สร้าง web service จาก `Dockerfile` (backend + หน้าเว็บใน container เดียว ใช้ลิงก์เดียว) และฐานข้อมูล PostgreSQL ให้อัตโนมัติ
+- **HTTPS อัตโนมัติ** — กล้องสแกน QR และแจ้งเตือน real-time (WebSocket) ใช้งานได้บนมือถือจริง
+- **Continuous Deployment** — `git push` ขึ้น `main` แล้ว Render build และ deploy เวอร์ชันใหม่ให้เอง
+- **ค่าลับไม่อยู่ใน repo** — `SECRET_KEY` (Render สุ่มให้) และ `ADMIN_PASSWORD` เก็บใน Environment ของ Render
+- **ข้อจำกัดแพ็กเกจฟรี** — ไม่มีคนใช้ 15 นาทีเซิร์ฟเวอร์จะหลับ (เปิดครั้งแรกรอประมาณ 1 นาที) และฐานข้อมูลฟรีมีอายุ 30 วัน
 
 ## 🧰 แก้ปัญหาที่พบบ่อย
 
@@ -271,10 +267,6 @@ repo นี้มี `render.yaml` + `Dockerfile` ให้แล้ว Render �
 | สมัครแล้วขึ้น "Username นี้ถูกใช้งานแล้ว" | หมายเลขห้องนี้มีคนสมัครแล้ว ใช้เลขห้องอื่น (username อย่างน้อย 3 ตัวอักษร, รหัสผ่านอย่างน้อย 6 ตัวอักษร) |
 | เปิดจากเครื่องอื่นในวง LAN แล้วใช้งานไม่ได้ | เปิดผ่าน `http://<IP เครื่องที่รัน backend>:8000` (ไม่ใช่พอร์ต 5500) — หน้าเว็บจะเรียก API ที่เครื่องเดียวกันให้เอง |
 | ตั้งชื่อ container ชนกับโปรเจกต์อื่น (`project_db is already in use`) | มีโปรเจกต์อื่นใช้ชื่อ container เดียวกันอยู่ — หยุดโปรเจกต์นั้นก่อน (`docker rm -f project_db project_api project_pgadmin`) |
-| **Render:** เปิดลิงก์แล้วโหลดนานมาก | เซิร์ฟเวอร์ฟรีหลับอยู่ — รอประมาณ 1 นาทีแล้วจะเปิดได้ตามปกติ |
-| **Render:** ล็อกอินนิติไม่ได้ | เช็ก `ADMIN_PASSWORD` ที่ Render → service → **Environment** แก้แล้วกด **Save, rebuild, and deploy** |
-| **Render:** build ล้มเหลว / ขึ้น Deploy failed | เปิดแท็บ **Logs** ใน Render ดูข้อความ error · เช็กว่า push `Dockerfile` และ `render.yaml` ขึ้น GitHub แล้ว |
-| **Render:** ข้อมูลหายหมด | ฐานข้อมูลฟรีครบ 30 วันแล้ว — สร้าง Blueprint ใหม่ (บัญชีนิติและของเริ่มต้นจะถูกสร้างให้อัตโนมัติ) |
 
 ## ⚠️ ข้อจำกัดที่ทราบ
 
